@@ -13,4 +13,4 @@ pip install pyConsol
 
 ## Source Code
 
-[https://github.com/sjbrandenberg/pyConsol](https://github.com/sjbrandenberg/pyConsol)
+[https://github.com/sjbrandenberg/pyConsol](https://github.com/sjbrandenberg/ucla_geotech_tools/ipyconsol)
