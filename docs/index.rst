@@ -21,9 +21,16 @@ ________
    :maxdepth: 1
    
    ipyconsol_README
-   license
 
 Contact
 _______
 
 If you have questions or comments, contact Scott Brandenberg (sjbrandenberg@ucla.edu)
+
+License
+_______
+
+.. toctree::
+   :maxdepth: 1
+   
+   license
