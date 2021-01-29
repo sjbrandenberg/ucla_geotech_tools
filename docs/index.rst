@@ -6,6 +6,7 @@ Welcome to ucla_geotech_tools documentation!
    
    README
    license
+   ipyconsol/README
 
 
 
