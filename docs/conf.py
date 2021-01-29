@@ -17,12 +17,12 @@
 
 # -- Project information -----------------------------------------------------
 
-project = 'ipyconsol'
+project = 'ucla_geotech_tools'
 copyright = '2021, Scott J. Brandenberg'
 author = 'Scott J. Brandenberg'
 
 # The full version, including alpha/beta/rc tags
-release = '1.0.1'
+release = '1.0.2'
 
 
 # -- General configuration ---------------------------------------------------
