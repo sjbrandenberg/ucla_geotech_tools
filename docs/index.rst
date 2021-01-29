@@ -20,7 +20,7 @@ ________
 .. toctree::
    :maxdepth: 1
    
-   includes
+   ipyconsol
 
 Contact
 _______
