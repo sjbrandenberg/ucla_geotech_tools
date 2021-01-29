@@ -20,7 +20,7 @@ ________
 .. toctree::
    :maxdepth: 1
    
-   ipyconsol_REAMDE
+   ipyconsol_README
    license
 
 Contact
