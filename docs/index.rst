@@ -4,9 +4,7 @@ Welcome to ucla_geotech_tools documentation!
 .. toctree::
    :maxdepth: 3
    
-   README
-   license
-   ipyconsol/README
+   include_link
 
 
 
