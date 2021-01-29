@@ -21,6 +21,7 @@ ________
    :maxdepth: 1
    
    ipyconsol_REAMDE
+   license
 
 Contact
 _______
