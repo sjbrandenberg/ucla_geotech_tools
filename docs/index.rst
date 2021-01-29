@@ -20,7 +20,7 @@ ________
 .. toctree::
    :maxdepth: 1
    
-   .. mdinclude:: ../ipyconsol/README.md
+   includes
 
 Contact
 _______
