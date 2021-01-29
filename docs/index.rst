@@ -20,7 +20,7 @@ ________
 .. toctree::
    :maxdepth: 1
    
-   ipyconsol
+   ipyconsol_REAMDE
 
 Contact
 _______
