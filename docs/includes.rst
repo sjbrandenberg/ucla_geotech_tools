@@ -1,1 +1,1 @@
-.. include:: ../ipyconsol/README.md
+.. mdinclude:: ../ipyconsol/README.md
