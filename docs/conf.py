@@ -17,7 +17,7 @@
 
 # -- Project information -----------------------------------------------------
 
-project = 'ucla_geotech_tools'
+project = 'ipyconsol'
 copyright = '2021, Scott J. Brandenberg'
 author = 'Scott J. Brandenberg'
 
