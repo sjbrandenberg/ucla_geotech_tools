@@ -21,9 +21,6 @@ ________
    :maxdepth: 1
    
    ipyconsol/README
-   license
-
-
 
 Contact
 _______
