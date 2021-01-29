@@ -2,7 +2,7 @@ Welcome to ucla_geotech_tools documentation!
 ====================================
 
 .. toctree::
-   :maxdepth: 2
+   :maxdepth: 3
    
    README
    license
