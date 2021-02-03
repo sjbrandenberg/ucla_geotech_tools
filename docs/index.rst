@@ -21,6 +21,7 @@ ________
    :maxdepth: 1
    
    ipyconsol_README
+   random_field_README
 
 Contact
 _______
