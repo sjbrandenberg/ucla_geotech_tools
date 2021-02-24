@@ -8,7 +8,7 @@ pip install ucla_geotech_tools.random_field
 ```
 
 ```bash
-Note: Please make sure you have the package "pykrige" installed before installing this package.
+Note: Please make sure you have the package "pyKrige" installed before installing this package.
 You can try "pip install pykrige" if you haven't done so!
 ```
 
