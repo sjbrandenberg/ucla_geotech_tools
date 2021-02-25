@@ -53,4 +53,4 @@ plt.show()
 ## Example
 The Jupyter notebook example illustrates how to use the random_field package. Two examples are given in this Jupyter notebook, where random fields are generated using Gaussian and Markovian coorelation function, respectively. Feel free to modify the example to suit your own problem. Right click the link and use "Save link as".
 
-[random_field.ipynb](https://github.com/sjbrandenberg/ucla_geotech_tools/blob/main/random_field/random_field.ipynb)
+[random_field.ipynb](https://github.com/sjbrandenberg/ucla_geotech_tools/raw/master/random_field/random_field.ipynb)
