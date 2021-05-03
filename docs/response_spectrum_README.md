@@ -59,7 +59,7 @@ plt.ylabel('Spectral Acceleration (g)')
 ```
 
 ## Output
-![](https://github.com/sjbrandenberg/ucla_geotech_tools/blob/main/response_spectrum/spectral_acceleration.png)
+![](../response_spectrum/spectral_acceleration.png)
 
 ## Example
 The Jupyter notebook example illustrates how to use the response_spectrum package. The example creates three ground motions with amplitude of 1g, and frequencies of 1.0, 3.0, and 5.0 Hz, computes and plots their response spectra. Note that the sampling frequency and number of points have been selected to prevent spectral leakage (i.e., the signals are all periodic). Padding with zeros, or selecting a duration / sampling frequency combination that does not permit an integer number of cycles will result in spurious frequencies being present in the signal. Right click the link and use "Save link as".
