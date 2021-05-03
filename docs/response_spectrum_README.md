@@ -61,4 +61,4 @@ plt.ylabel('Spectral Acceleration (g)')
 ```
 
 ### Output
-https://github.com/sjbrandenberg/ucla_geotech_tools/blob/main/response_spectrum/spectral_acceleration.png
+![](https://github.com/sjbrandenberg/ucla_geotech_tools/blob/main/response_spectrum/spectral_acceleration.png)
