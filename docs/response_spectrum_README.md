@@ -1,4 +1,4 @@
-# Welcome to response_spectrum
+# response_spectrum
 
 response_spectrum computes a psuedo-acceleration response spectrum from an input ground motion or set of ground motions sampled at a constant frequency. Calculates are performed in the frequency domain by
 
