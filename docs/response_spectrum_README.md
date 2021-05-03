@@ -29,9 +29,7 @@ zeropad = 1: apply zero padding to speed up FFT operation, 0: do not pad with ze
 verbose = 1: print output message when default values are being used, 0: suppress output messages (optional, default = 1)
 ```
 
-## Example
-
-### Python script
+## Python script
 ```python
 import numpy as np
 import ucla_geotech_tools.response_spectrum as ars
@@ -60,7 +58,7 @@ plt.xlabel('Natural Period (s)')
 plt.ylabel('Spectral Acceleration (g)')
 ```
 
-### Output
+## Output
 ![](https://github.com/sjbrandenberg/ucla_geotech_tools/blob/main/response_spectrum/spectral_acceleration.png)
 
 ## Example
