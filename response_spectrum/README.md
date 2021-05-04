@@ -78,7 +78,7 @@ plt.savefig('spectral_acceleration.png')
 ```
 
 ### Output
-![](spectral_acceleration.png)
+![](../docs/spectral_acceleration.png)
 
 ### Jupyter Notebook
 Here is the example as Jupyter notebook.  Right click the link and use "Save link as".
