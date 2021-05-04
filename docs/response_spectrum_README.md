@@ -8,12 +8,12 @@ response_spectrum computes a psuedo-acceleration response spectrum from an input
 4. repeating steps 2 and 3 for a range of user-specified periods
 
 ## Installation  
-```bash
+```python
 pip install ucla_geotech_tools.response_spectrum
 ```
 
 ## Command
-```bash
+```python
 get_response_spectrum(**kwargs)
 get_ngawest2_T()
 ```
