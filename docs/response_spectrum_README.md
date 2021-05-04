@@ -19,7 +19,7 @@ get_ngawest2_T()
 ```
 
 ## Input parameters.
-```python
+```
 motion(s) = an M x N list or python array containing acceleration data, where M is the number of motions and N is the number of data points in each motion. All motions must have the same number of data points. (required)  
 dt = time step (required)
 D = damping (optional, default = 0.05)
