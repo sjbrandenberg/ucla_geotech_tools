@@ -1,6 +1,6 @@
 # response_spectrum
 
-response_spectrum computes a psuedo-acceleration response spectrum from an input ground motion or set of ground motions sampled at a constant frequency. Calculates are performed in the frequency domain by
+response_spectrum computes a psuedo-acceleration response spectrum from an input ground motion or set of ground motions sampled at a constant frequency. Calculations are performed in the frequency domain by
 
 1. taking the Fourier transform of the input motion(s)
 2. multiplying by the transfer function for computing the motion of a single-degree-of-freedom (SDOF) oscillator with natural period T and damping D
