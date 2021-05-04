@@ -75,7 +75,7 @@ plt.ylabel('Spectral Acceleration (g)')
 ```
 
 ### Output
-![](spectral_acceleration.png)
+![](spectral_acceleration2.png)
 
 ### Jupyter Notebook
 Here is the example as Jupyter notebook.  Right click the link and use "Save link as".
