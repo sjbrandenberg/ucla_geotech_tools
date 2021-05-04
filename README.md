@@ -5,5 +5,5 @@ Collection of tools developed by the UCLA geotechnical research group. The tools
 2. random_field: Generates densely-sampled two-dimensional spatially correlated random fields using a mix of Cholesky decomposition and ordinary kriging
 3. response_spectrum: Computes pseudo-acceleration response spectra for an array of input acceleration time series
 
-#Documentation
+# Documentation
 [https://ucla-geotech-tools.readthedocs.io/en/latest/](https://ucla-geotech-tools.readthedocs.io/en/latest/)
