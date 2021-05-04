@@ -1,0 +1,9 @@
+# ucla_geotech_tools
+Collection of tools developed by the UCLA geotechnical research group. The tools are:
+
+1. ipyconsol: A nonlinear one-dimensional consolidation solver including a state-based secondary compression formulation
+2. random_field: Generates densely-sampled two-dimensional spatially correlated random fields using a mix of Cholesky decomposition and ordinary kriging
+3. response_spectrum: Computes pseudo-acceleration response spectra for an array of input acceleration time series
+
+#Documentation
+[https://ucla-geotech-tools.readthedocs.io/en/latest/](https://ucla-geotech-tools.readthedocs.io/en/latest/)
