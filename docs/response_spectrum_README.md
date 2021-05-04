@@ -69,9 +69,12 @@ T = ars.get_ngawest2_T()
 Sa = ars.get_response_spectrum(motions=motions, dt=dt, D=D, zeropad=0, verbose=0)
 
 for i in range(M):
-    plt.loglog(T,Sa[i])
+    plt.loglog(T,Sa[i],label=str(freq[i])+" Hz")
 plt.xlabel('Natural Period (s)')
 plt.ylabel('Spectral Acceleration (g)')
+plt.legend()
+plt.grid(True,which='both')
+plt.savefig('spectral_acceleration.png')
 ```
 
 ### Output
