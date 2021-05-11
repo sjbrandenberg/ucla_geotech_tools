@@ -9,6 +9,15 @@ ground motions sampled at a constant frequency. Calculations are performed in th
 4. computing the peak acceleration amplitude for the SDOF oscillator
 5. repeating steps 2 and 3 for a range of user-specified periods
 
+## Signal conditioning
+
+response_spectrum does not perform any signal conditioning, which is assumed to be performed prior to invoking
+the response_spectrum command. I recommend performing the following steps prior to computing a response spectrum:
+
+i. high-pass filtering. I generally use an acausal Butterworth filter and set the corner frequency and order
+such to be the least invasive possible combination that removes undesired low frequency drift.
+ii. application of a Tukey window to ensure periodicity of the signal.
+
 ## Installation  
 ```python
 pip install ucla_geotech_tools.response_spectrum
