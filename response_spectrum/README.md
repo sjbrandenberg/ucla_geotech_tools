@@ -14,9 +14,9 @@ ground motions sampled at a constant frequency. Calculations are performed in th
 response_spectrum does not perform any signal conditioning, which is assumed to be performed prior to invoking
 the response_spectrum command. I recommend performing the following steps prior to computing a response spectrum:
 
-i. high-pass filtering. I generally use an acausal Butterworth filter and set the corner frequency and order
+1. high-pass filtering. I generally use an acausal Butterworth filter and set the corner frequency and order
 such to be the least invasive possible combination that removes undesired low frequency drift.
-ii. application of a Tukey window to ensure periodicity of the signal.
+2. application of a Tukey window to ensure periodicity of the signal.
 
 ## Installation  
 ```python
