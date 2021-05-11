@@ -103,7 +103,7 @@ pcl.get_utest(klast, ktest, avtest, zlast, ztest, ulast, sigvlast, sigvtest, ela
 
 The Jupyter notebook example illustrates how to use the ipyconsol package. Four different cases are analyzed: 1. Uniform soil, constant load, 2. Layered soil, constant load, 3. Uniform soil, time-dependent load, and 4. Layered soil, time-dependent load. Feel free to modify the example to suit your own problem. Right click the link and use "Save link as".
 
-[pyConsol.ipynb](https://github.com/sjbrandenberg/pyConsol/raw/master/examples/pyConsol.ipynb)
+[ipyconsol.ipynb](https://github.com/sjbrandenberg/ucla_geotech_tools/blob/main/ipyconsol/ipyconsol.ipynb)
 
 ### Web version
 A version of this software is available [here](https://www.uclageo.com/Consolidation) for uniform soil, constant load and [here](https://www.uclageo.com/Consolidaiton2) for layered soil, time-varying load.
