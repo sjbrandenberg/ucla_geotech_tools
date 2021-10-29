@@ -18,7 +18,7 @@ get_chol_field: generate the random field for cholskey nodes
 get_krig_field: generate the random field for kriging nodes
 ```
 
-## Input Parameters for main function
+## Input Parameters for Main Function
 ```bash
 x: x coordinates (list or array of x coordinates)
 z: z coordinates (list or array of z coordinates)
