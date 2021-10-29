@@ -7,11 +7,6 @@ This function generates the random field using both Cholesky Decomposition metho
 pip install ucla_geotech_tools.random_field
 ```
 
-```bash
-Note: Please make sure you have the package "pyKrige" installed before installing this package.
-You can try "pip install pykrige" if you haven't done so!
-```
-
 ## Input Parameters
 ```bash
 X : X coordinates (list or array of X coordinates)
