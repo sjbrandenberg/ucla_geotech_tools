@@ -8,8 +8,8 @@ title: >-
 message: 'If you use this software, please cite it as below.'
 type: software
 authors:
-  - given-names: Brandenberg
-    family-names: Scott
+  - given-names: Scott
+    family-names: Brandenberg
     name-suffix: J.
     email: sjbrandenberg@ucla.edu
     affiliation: >-
