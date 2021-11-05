@@ -3,8 +3,8 @@
 
 cff-version: 1.2.0
 title: >-
-  ucla_geotech_tools: A set of Python packages
-  developed by the UCLA geotechnical group
+  'ucla_geotech_tools: A set of Python packages
+  developed by the UCLA geotechnical group'
 message: 'If you use this software, please cite it as below.'
 type: software
 authors:
@@ -22,3 +22,6 @@ authors:
     affiliation: >-
       Graduate Student Researcher, University of
       California, Los Angeles
+version: 1.0.2
+doi: 10.5281/zenodo.5621169
+date-released: "2021-11-05"
