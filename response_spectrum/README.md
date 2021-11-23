@@ -1,13 +1,23 @@
 # response_spectrum
 
 response_spectrum computes a psuedo-acceleration response spectrum from an input ground motion or set of 
-ground motions sampled at a constant frequency. Calculations are performed in the frequency domain by:
+ground motions sampled at a constant frequency. It is also capable of computing rotated response spectra for 
+two horizontal components (e.g., RotD50). Calculations for computing a response spectrum are performed in 
+the frequency domain by:
 
 1. taking the Fourier transform of the input motion(s)
 2. multiplying by the transfer function for computing the motion of a single-degree-of-freedom (SDOF) 
    oscillator with natural period T and damping D
 4. computing the peak acceleration amplitude for the SDOF oscillator
 5. repeating steps 2 and 3 for a range of user-specified periods
+
+Calculations for RotD50 are performed by:
+
+1. Computing the response of an SDOF oscillator with a specific T and D to the two horizontal motions. These are motion1_conv, and motion2_conv.
+2. Setting 100 different rotation angles between 0 and $\pi$
+3. Computing convolved motion for each angle as motion_rot_conv = motion1_conv*cos(angle) - motion2_conv*sin(angle)
+4. Compute the maximum of each value of motion_rot_conv. This is called motion_rot_conv_max, and there is one value per angle.
+5. Compute the specified percentile value of the motion_rot_conv_max.
 
 ## Signal conditioning
 
@@ -60,7 +70,7 @@ get_response_spectra(motions=acc, dt=0.005)
 In this case, I have left out D, T, zeropad, and verbose, so the default values will be assigned to these keys.
 ```
 
-## Example
+## Example 1: Compute response spectra for harmonic motions with different frequencies
 The example creates three ground motions with amplitude of 1g, and frequencies of 1.0, 3.0, and 5.0 Hz, and computes and plots 
 their response spectra. Since the motions are harmonic, the response spectra have the same shape as the SDOF transfer function. 
 Response spectra for broadband earthquake ground motions generally have a different shape since many frequencies are present in 
@@ -105,8 +115,47 @@ plt.savefig('spectral_acceleration.png')
 ### Output
 ![](../docs/spectral_acceleration.png)
 
+## Example 2: Compute RotD10, RotD50, and RotD90 spectra for two horizontal components
+This example creates response spectra for the 10th, 50th, and 90th percentile values of two component ground motion rotated 
+through 100 different angles between 0 and $\pi$.
+
+### Python script
+```python
+import numpy as np
+import ucla_geotech_tools.response_spectrum as ars
+import matplotlib.pyplot as plt
+
+N = 4000               # Number of time steps
+M = 3                  # Number of motions
+dt = 0.005             # Time step in seconds
+D = 0.05               # Damping
+freq = [1.0, 3.0, 5.0] # Frequencies for three different harmonic motions
+
+motions = np.empty([M,N],dtype="float64")
+for i in range(M):
+    for j in range(N):
+        motions[i][j] = np.sin(2*np.pi*freq[i]*j*dt)
+
+# Get spectral periods used in NGAWest2 project
+T = ars.get_ngawest2_T()
+
+# Get Python array containing pseudo-spectral acceleration values
+Sa = ars.get_response_spectrum(motions=motions, dt=dt, D=D, zeropad=0, verbose=0)
+
+for i in range(M):
+    plt.loglog(T,Sa[i],label=str(freq[i])+" Hz")
+plt.xlabel('Natural Period (s)')
+plt.ylabel('Spectral Acceleration (g)')
+plt.legend()
+plt.grid(True,which='both')
+plt.savefig('spectral_acceleration.png')
+```
+
+### Output
+![](../docs/RotDExample.png)
+
 ### Jupyter Notebook
-Here is the example as Jupyter notebook.  Right click the link and use "Save link as".
+The examples are contained in this Jupyter notebook.  Right click the link and use "Save link as".
 
 [response_spectrum.ipynb](https://github.com/sjbrandenberg/ucla_geotech_tools/raw/main/response_spectrum/response_spectrum.ipynb)
 
