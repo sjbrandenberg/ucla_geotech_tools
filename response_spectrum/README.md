@@ -159,3 +159,6 @@ The examples are contained in this Jupyter notebook.  Right click the link and u
 
 [response_spectrum.ipynb](https://github.com/sjbrandenberg/ucla_geotech_tools/raw/main/response_spectrum/response_spectrum.ipynb)
 
+[20210102144223_BK_BDM_HHE.txt](https://github.com/sjbrandenberg/ucla_geotech_tools/raw/main/response_spectrum/20210102144223_BK_BDM_HHE.txt)
+
+[20210102144223_BK_BDM_HHN.txt](https://github.com/sjbrandenberg/ucla_geotech_tools/raw/main/response_spectrum/20210102144223_BK_BDM_HHN.txt)
