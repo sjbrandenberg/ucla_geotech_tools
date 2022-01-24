@@ -6,11 +6,13 @@ auto_fchp select a high-pass corner frequency for a single component ground moti
 2.	Apply a Tukey window 
 3.	Compute the Fourier transform, Facc
 4.	Select a trial high-pass corner frequency, f
-5.	Filter the record using an acausal Butterworth filter defined by Eq. (\#eq:butterworth)
+5.	Filter the record using an acausal Butterworth filter defined by Eq. 1
 6.	Compute the Fourier coefficients of the displacement record, Fdisp
 7.	Compute the displacement time series, disp, by computing the inverse Fourier transform of Fdisp
 8.	Fit a polynomial of a desired order, dispfit, to disp
 9.	Compute the value of the error function, E, defined by Eq. 3 where target is the desired value of the ratio of the amplitude of the polynomial fit to that of the displacement
+
+<img src="https://render.githubusercontent.com/render/math?math=e^{i \pi} = -1">
 
 \begin{equation}
   filter_u = \frac{1}{\sqrt{1+\left(\frac{\hat{f}_{chp}}{f_u}\right)^{2\cdot order}}}
