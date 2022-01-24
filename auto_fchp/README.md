@@ -1,6 +1,6 @@
 # auto_fchp
 
-auto_fchp select a high-pass corner frequency for a single component ground motion acceleration record, acc, by following these steps:
+auto_fchp selects a high-pass corner frequency for a single component ground motion acceleration record, acc. The algorithm fits a polynomial to the filtered displacement record, and iterates on the high-pass corner frequency until the ratio of the amplitude of the polynomial fit to that of the displacement record is equal to a specified target. The algorithm follows these steps:
 
 1.	Subtract the mean from acc
 2.	Apply a Tukey window 
@@ -30,6 +30,8 @@ pip install ucla_geotech_tools.auto_fchp
 ```python
 get_fchp(**kwargs)
 ```
+
+The get_fchp function calls a number of additional functions that are defined using cdef in Cython, and are therefore not accessible via the pip installable package. However, you may download and modify the source code if you would like to utilize these functions directly. These functions include maxabs(vx), which returns the maximum of the absolute value of a vector vx, filters_Facc(Facc, freq, fc, order), whic returns Fourier coefficients for the filtered version of Facc, get_vel(freq, Facc), which returns the Fourier coefficients for velocity given a frequency vector (freq) and Fourier coefficients for the acceleration (Facc), get_disp(freq, Facc), which returns Fourier coefficents for displacement, and get_residual(time, disp, target, poly_order), which returns the residual defined by Eq. 3.
 
 ## Input parameters.
 ```
