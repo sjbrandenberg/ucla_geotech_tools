@@ -12,13 +12,13 @@ auto_fchp selects a high-pass corner frequency for a single component ground mot
 8.	Fit a polynomial of a desired order, <img src="https://render.githubusercontent.com/render/math?math=disp_{fit}">, to disp
 9.	Compute the value of the error function, E, defined by Eq. 3 where target is the desired value of the ratio of the amplitude of the polynomial fit to that of the displacement
 
-Equation 1:
+Equation 1:  
 <img src="https://render.githubusercontent.com/render/math?math=filter_u = \frac{1}{\sqrt{1+\left(\frac{\hat{f}_{chp}}{f_u}\right)^{2\cdot order}}}">
 
-Equation 2:
+Equation 2:  
 <img src="https://render.githubusercontent.com/render/math?math=Fdisp_u = \frac{Facc_u \cdot filter_u}{-\left(2\pi f_u\right)^2}"> 
 
-Equation 3:
+Equation 3:  
 <img src="https://render.githubusercontent.com/render/math?math=E = \frac{\left|disp_{fit}\right|}{\left|disp\right|} - target">  
 
 ## Installation  
