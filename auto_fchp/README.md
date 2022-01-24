@@ -29,14 +29,12 @@ Equation 3:
 pip install ucla_geotech_tools.auto_fchp
 ```
 
-## Functions
+## Function
 ```python
 get_fchp(**kwargs)
 ```
 
-The get_fchp function calls a number of additional functions that are defined using cdef in Cython, and are therefore not accessible via the pip installable package. However, you may download and modify the source code if you would like to utilize these functions directly. These functions include maxabs(vx), which returns the maximum of the absolute value of a vector vx, filters_Facc(Facc, freq, fc, order), whic returns Fourier coefficients for the filtered version of Facc, get_vel(freq, Facc), which returns the Fourier coefficients for velocity given a frequency vector (freq) and Fourier coefficients for the acceleration (Facc), get_disp(freq, Facc), which returns Fourier coefficents for displacement, and get_residual(time, disp, target, poly_order), which returns the residual defined by Eq. 3.
-
-## Input parameters.
+## Input parameters
 ```
 Required keys:
     
@@ -63,3 +61,7 @@ get_response_spectra(acc=acc, dt=dt)
 
 In this case, default values will be assigned to all but the two required parameters.
 ```
+
+## Subroutines
+
+The get_fchp function calls a number of subroutines that are defined using cdef in Cython, and are therefore not accessible via the pip installable package. However, you may download and modify the source code if you would like to utilize these functions directly. These functions include maxabs(vx), which returns the maximum of the absolute value of a vector vx, filters_Facc(Facc, freq, fc, order), whic returns Fourier coefficients for the filtered version of Facc, get_vel(freq, Facc), which returns the Fourier coefficients for velocity given a frequency vector (freq) and Fourier coefficients for the acceleration (Facc), get_disp(freq, Facc), which returns Fourier coefficents for displacement, and get_residual(time, disp, target, poly_order), which returns the residual defined by Eq. 3.
