@@ -14,7 +14,7 @@ auto_fchp select a high-pass corner frequency for a single component ground moti
 
 <img src="https://render.githubusercontent.com/render/math?math=filter_u = \frac{1}{\sqrt{1+\left(\frac{\hat{f}_{chp}}{f_u}\right)^{2\cdot order}}}"> (1)  
 
-<img src="https://render.githubusercontent.com/render/math?math=Fdisp_u = \frac{Facc_u \cdot filter_u}{-\left(2\pi f_u/right)^2}"> (2)  
+<img src="https://render.githubusercontent.com/render/math?math=Fdisp_u = \frac{Facc_u \cdot filter_u}{-\left(2\pi f_u\right)^2}"> (2)  
 
 <img src="https://render.githubusercontent.com/render/math?math=E = \frac{\left|disp_{fit}\right|}{\left|disp\right|} - target"> (3)  
 
