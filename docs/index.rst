@@ -23,6 +23,7 @@ ________
    ipyconsol_README
    random_field_README
    response_spectrum_README
+   auto_fchp_README
 
 Contact
 _______
