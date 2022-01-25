@@ -57,7 +57,7 @@ and the value is the data quantity associated with the key. For example:
 
 acc = [0.00, 0.01, -0.002, ..., 0.04, -0.001]
 dt = 0.005
-get_response_spectra(acc=acc, dt=dt)
+get_fchp(acc=acc, dt=dt)
 
 In this case, default values will be assigned to all but the two required parameters.
 ```
