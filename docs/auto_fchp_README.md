@@ -6,7 +6,7 @@ auto_fchp selects a high-pass corner frequency for a single component ground mot
 2.	Apply a Tukey window 
 3.	Compute the Fourier transform, <img src="https://render.githubusercontent.com/render/math?math=F_{acc}">, and frequency vector, f
 4.	Select a trial high-pass corner frequency, <img src="https://render.githubusercontent.com/render/math?math=\hat{f}_{chp}">
-5.	Filter the record using an acausal Butterworth filter defined by Eq. 1
+5.	Filter the record using an acausal Butterworth filter defined by Eq. 1, where u is an index counter over the number of frequency components
 6.	Compute the Fourier coefficients of the displacement record, <img src="https://render.githubusercontent.com/render/math?math=F_{disp}">, using Eq. 2
 7.	Compute the displacement time series, disp, by computing the inverse Fourier transform of <img src="https://render.githubusercontent.com/render/math?math=F_{disp}">
 8.	Fit a polynomial of a desired order, <img src="https://render.githubusercontent.com/render/math?math=disp_{fit}">, to disp
