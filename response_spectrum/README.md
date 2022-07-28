@@ -151,7 +151,7 @@ plt.tight_layout()
 ```
 
 ### Output
-![](../docs/RotDExample.png)
+![](../docs/RotDExample_ver2.png)
 
 ### Jupyter Notebook
 The examples are contained in this Jupyter notebook.  Right click the link and use "Save link as".
