@@ -115,9 +115,9 @@ plt.savefig('spectral_acceleration.png')
 ### Output
 ![](../docs/spectral_acceleration.png)
 
-## Example 2: Compute RotD10, RotD50, and RotD90 spectra for two horizontal components
-This example creates response spectra for the 10th, 50th, and 90th percentile values of two component ground motion rotated 
-through 100 different angles between 0 and $\pi$.
+## Example 2: Compute RotD0, RotD50, and RotD100 spectra for two horizontal components
+This example creates response spectra for the minimum, 50th percentile, and maximum values of two component ground motion rotated 
+through 180 different angles between 0 and $\pi$.
 
 ### Python script
 ```python
