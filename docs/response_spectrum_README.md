@@ -115,44 +115,43 @@ plt.savefig('spectral_acceleration.png')
 ### Output
 ![](../docs/spectral_acceleration.png)
 
-## Example 2: Compute RotD10, RotD50, and RotD90 spectra for two horizontal components
-This example creates response spectra for the 10th, 50th, and 90th percentile values of two component ground motion rotated 
-through 100 different angles between 0 and $\pi$.
+## Example 2: Compute RotD0, RotD50, and RotD100 spectra for two horizontal components
+This example creates response spectra for the minimum, 50th percentile, and maximum values of two component ground motion rotated 
+through 180 different angles between 0 and $\pi$.
 
 ### Python script
 ```python
+%matplotlib notebook
 import numpy as np
-import ucla_geotech_tools.response_spectrum as ars
 import matplotlib.pyplot as plt
+import ucla_geotech_tools.response_spectrum as ars
+import pandas as pd
 
-N = 4000               # Number of time steps
-M = 3                  # Number of motions
-dt = 0.005             # Time step in seconds
-D = 0.05               # Damping
-freq = [1.0, 3.0, 5.0] # Frequencies for three different harmonic motions
+D = 0.05  # Damping
+motion1 = pd.read_csv('20210102144223_BK_BDM_HHE.txt',sep=' ', names=['time (s)', 'acc (g)'])
+motion2 = pd.read_csv('20210102144223_BK_BDM_HHN.txt',sep=' ', names=['time (s)', 'acc (g)'])
+acc1 = motion1['acc (g)'].values
+acc2 = motion2['acc (g)'].values
+time = motion1['time (s)'].values
+dt = time[1] - time[0]
 
-motions = np.empty([M,N],dtype="float64")
-for i in range(M):
-    for j in range(N):
-        motions[i][j] = np.sin(2*np.pi*freq[i]*j*dt)
-
-# Get spectral periods used in NGAWest2 project
+motions = [acc1, acc2]
 T = ars.get_ngawest2_T()
+RotD = [0, 50, 100]  # Specify 10th, 50th, and 90th percentiles
+Sa = ars.get_response_spectrum(motions=motions, dt=dt, D=D, zeropad=0, verbose=0, RotD=RotD) # returns Python array containing pseudo-spectral acceleration values for each specified RotD percentile 
 
-# Get Python array containing pseudo-spectral acceleration values
-Sa = ars.get_response_spectrum(motions=motions, dt=dt, D=D, zeropad=0, verbose=0)
-
-for i in range(M):
-    plt.loglog(T,Sa[i],label=str(freq[i])+" Hz")
+for rotd, sa in zip(RotD,Sa.T):
+    plt.loglog(T,sa,label=r"$RotD"+str(int(rotd))+'$')
+    
 plt.xlabel('Natural Period (s)')
 plt.ylabel('Spectral Acceleration (g)')
 plt.legend()
 plt.grid(True,which='both')
-plt.savefig('spectral_acceleration.png')
+plt.tight_layout()
 ```
 
 ### Output
-![](../docs/RotDExample.png)
+![](../docs/RotDExample_ver2.png)
 
 ### Jupyter Notebook
 The examples are contained in this Jupyter notebook.  Right click the link and use "Save link as".
