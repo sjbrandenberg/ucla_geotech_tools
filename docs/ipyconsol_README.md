@@ -1,112 +1,102 @@
-## ipyconsol
+# ipyconsol
 
-ipyconsol is a nonlinear implicit finite difference solver for one-dimensional consolidation of compressible soil with secondary compression. ipyconsol is the Python version of the Javascript package iConsol.js published by Brandenberg (2017).
+ipyconsol is a nonlinear implicit finite difference solver for one-dimensional consolidation of compressible soil with secondary compression. 
+ipyconsol is the Python version of the Javascript package iConsol.js published by Brandenberg (2017).
+This code is an extension of Brandenberg (2017) because it the soil can be non-uniform and the loading can vary in time.
+For spatially variable soil, material constants are entered as arrays, where the array length is equal to the number of nodes.
+For time-varying loading, a loadfactor array is specified and has a length equal to the time array.
 
-### Installation  
-```bash
-pip install ucla_geotech_tools.ipyconsol
-```
+Brandenberg, S. J. (2017) "iConsol. js: JavaScript implicit finite-difference code for nonlinear consolidation and secondary compression." International Journal of Geomechanics, 17(6)
 
-### Input Parameters
+## Installation  
+```bash
+pip install ucla_geotech_tools
+```
+## Requirements
+numpy >= 1.22  
+C compiler (e.g., gcc, Visual Studio Build Tools)
 
-#### General input parameters.
-```bash
-qo = initial vertical effective stress at the top of the layer  
-tol = convergence tolerance (optional, default = 1.0e-8)
-gammaw = unit weight of water (optional, default = 9.81)
-pa = atmospheric pressure (optional, default = 101.325)
-drainagetype = 0 double drainage, 1 single drainage through the top, or 2 single drainage through the bottom (optional, default = 0)
-```
-  
-#### Soil properties (uniform soil layer). All inputs are scalars
-```bash
-H = layer thickness
-N = number of elements
-Cc = virgin compression index
-Cr = recompression index
-sigvref = vertical effective stress of reference point on normal consolidation line
-esigvref = void ratio of reference point on normal consolidation line
-Gs = specific gravity of solids
-Ck = coefficient of permeability variation
-kref = hydraulic conductivity of reference point on e-logk curve
-ekref = void ratio of reference point on e-logk curve
-Ca = secondary compression index
-tref = reference time corresponding to normal consolidation line
-dsigv = total stress increment applied to top of soil layer
-ocrvoidratiotype = 0 constant OCR, 1 constant eo, 2 constant maximum past pressure
-ocrvoidratio = value of OCR, eo, or maximum past pressure, depending on value of ocrvoidratiotype
-ru = initial excess pore pressure, prior to addition of dsigv (optional, default = 0.0)
-```
-#### Soil properties (layered profile). All inputs are lists or numpy arrays
-```bash
-depth = node locations
-Cc = virgin compression index values
-Cr = recompression index values
-sigvref = vertical effective stresses for reference point on normal consolidation line
-esigvref = void ratios for reference point on normal consolidation line
-Gs = specific gravities of solids
-Ck = coefficients of permeability variation
-kref = hydraulic conductivities for reference point on e-logk curve
-ekref = void ratios for reference point on e-logk curve
-Ca = secondary compression indices
-tref = reference times corresponding to normal consolidation line
-dsigv = total stress increments applied at each depth
-ocrvoidratiotype = 0 constant OCR, 1 constant eo, 2 constant maximum past pressure
-ocrvoidratio = value of OCR, eo, or maximum past pressure, depending on value of ocrvoidratiotype
-ru = initial excess pore pressures, prior to addition of dsigv (optional, default = 0.0)
-```
-#### Time input parameters (constant load increment)
-```bash
-Ntime = number of time increments
-tmax = maximum time value
-```
-#### Time input parameters (time-dependent loading sequence)
-```bash
-time = list or array of time values
-loadfactor = corresponding load factor values. Stress increment is load factor multiplied by dsigv.
+## Functions  
+
+```python
+compute(**kwargs)
+get_initial(depth,Cc,Cr,sigvref,esigvref,Gs,kref,ekref,Ck,Ca,tref,qo,dsigv,ocrvoidratiotype,ocrvoidratio,ru,time,loadfactor,gammaw,tol,pa,drainagetype)
+get_inputs(**kwargs)
 ```
 
-### Usage
+## Variables
+
+There are two options for soil inputs (uniform and non-uniform) and two options for loading (constant and time-varying).
+
+soil property options:
+    option 1: soil is uniform (i.e., material parameters are constants)
+    option 2: soil is non-uniform (i.e., material parameters are arrays, with array lengths equal to number of nodes)
+
+load stage options:
+    option A: constant load applied at time=0
+    option B: time-varying load
+
+The options may be combined in any manner (e.g., [option 1, option A], [option 1, option B], [option 2, option A], [option 2, option B])
+Uniform soil has constant model coefficients, and either void ratio, OCR, or maximum past pressure is constant.
+
+### Keyword Args:
+| parameter | type | description | required | default |
+|-----------|------|-------------|----------|---------|
+| ```N``` | int | number of elements | required for option 1 | |
+| ```H``` | float | thickness of soil layer | required for option 1 | |
+| ```depth``` | numpy array, dtype = float | array of depth values | required for option 2 | |
+| ```Ntime``` | float | number of time steps | required for option A | |
+| ```tmax``` | float | maximum time value | required for option A | |
+| ```time``` | numpy array, dtype = float | array of time values | required for option B | |
+| ```loadfactor``` | numpy array, dtype = float | array of load factor values where stress increment = loadfactor*dsigv | required for option B | |
+| ```Cc``` | float or numpy array | virgin compression index | required | | 
+| ```Cr``` | float or numpy array | recompression index | required | | 
+| ```sigvref``` | float or numpy array | vertical effective stress for a point on the normal consolidation line | required | | 
+| ```esigvref``` | float or numpy array | void ratio for point on normal consolidation line corresponding to esigvref | required | | 
+| ```Gs```| float or numpy array | specific gravity of solids | required | |
+| ```kref``` | float or numpy array | hydraulic conductivity for a point on the e-logk line | required | |
+| ```ekref``` | float or numpy array | void ratio for point on the e-logk like corresponding to kref | |
+| ```Ck``` | float or numpy array | coefficient of permeability variation defined as slope of e-logk relationship de/dlogk | required | |
+| ```Ca``` | float or numpy array | coefficient of secondary compression | required | |
+| ```tref``` | float or numpy array | time associated with normal consolidation line following Bjerrum's time-line concept | required | |
+| ```qo``` | float | initial vertical effective stress at top of soil | required | |
+| ```dsigv``` | float or numpy array | change in total stress | required | |
+| ```ocrvoidratiotype``` | float or numpy array | 0 OCR, 1 eo, 2 maximum past pressure | required | |
+| ```ocrvoidratio``` | float or numpy array | value of OCR, eo, or maximum past pressure, depending on value of ocrvoidratiotype | required | |
+| ```gammaw``` | float | unit weight of water | | 9.81 |
+| ```tol``` | float | convergence tolerance | | 1.0e-8 |
+| ```pa``` | float | atmospheric pressure | | 101.325 |
+| ```drainagetype``` | float | 0 = double-drained, 1 = single-drained through top, 2 = single-drained through bottom | | 0 |
+
+### Example Commands
+
+The example command below is for a uniform soil layer and constant loading. For other examples, see the test_ipyconsol.py file in the GitHub repository.
 
 ```python
 import ucla_geotech_tools.ipyconsol as pcl
 
-pcl.compute(*args, **kwargs) # returns dictionary containing depth values, 'z', pore pressures, 'u', vertical effective stresses 'sigv', and void ratios 'e' 
-
-pcl.get_inputs(*args, **kwargs) # reads inputs and returns [depth, Cc, Cr, sigvref, esigvref, Gs, kref, ekref, Ck, Ca, tref, qo, dsigv, ocrvoidratiotype, 
-                                # ocrvoidratio, ru, time, loadfactor, gammaw, tol, pa, drainagetype] 
-
-pcl.get_initial(depth, Cc, Cr, sigvref, esigvref, Gs, kref, ekref, Ck, Ca, tref, qo, dsigv, ocrvoidratiotype, ocrvoidratio, ru, time, loadfactor, gammaw, tol, pa, drainagetype)
-# returns dictionary containing initial void ratio 'eo', vertical effective stress 'sigvo', vertical effective stress with ru 'sigvo', and final effective stress 'sigvf'
-
-pcl.Logspace(tmin, tmax, Ntime, tstart) # returns time vector evenly distributed in log space between tmin and tmax
-
-pcl.get_ktest(etest,ekref,kref,Ck) # returns hydraulic conductivity for specified void ratio, etest
-
-pcl.get_avtest(elast, sigvlast, sigvtest, eref, sigvref, Cc, Cr) # returns coefficient of compressibility
-
-pcl.get_etest(etest, elast, eref, alpha, tref, sigvtest, sigvlast, sigvref, Cc, avtest, utest, ulast, dt)
-# returns trial void ratio
-
-pcl.get_residual(ulast, utest, elast, etest, klast, ktest, avtest, zlast, ztest, sigvlast, sigvtest, gammaw, Ca, Cc, sigvref, esigvref, double dt, tref, drainagetype, N)
-# returns array of residual values for trial pore pressure solution
-
-pcl.get_utest2(N, klast,  ktest,  zlast,  ztest,  avtest,  elast,  etest,  ulast,  utest,  sigvlast,  sigvtest,  Res, dt,  Cc,  Cr,  Ca, gammaw,  ekref,  kref,  Ck,  tref,  esigvref,  sigvref,  dsigv, drainagetype, pa)
-# returns trial pore pressure solution using Newton Raphson iteration
-
-pcl.get_utest(klast, ktest, avtest, zlast, ztest, ulast, sigvlast, sigvtest, elast, etest, Ca, Cc, sigvref, esigvref, dt, tref, drainagetype, N, gammaw)
-# returns initial pore pressure solution using linear theory
-
+output = pcl.compute(
+    Cc=5.729,
+    Cr=0.532,
+    sigvref=50.0,
+    esigvref=8.763,
+    Gs=1.686,
+    kref=1.0e-7,
+    ekref=8.344,
+    Ck=200.0,
+    Ca=0.0,
+    tref=3070.0,
+    qo=10.0,
+    dsigv=400.0,
+    ocrvoidratiotype=0,
+    ocrvoidratio=1.5,
+    drainagetype=0,
+    ru=0.0,
+    pa=101.325,
+    tol=1.0e-8,
+    N=100,
+    H=4.35,
+    Ntime=500,
+    tmax=35532000.0
+)
 ```
-
-### Example
-
-The Jupyter notebook example illustrates how to use the ipyconsol package. Four different cases are analyzed: 1. Uniform soil, constant load, 2. Layered soil, constant load, 3. Uniform soil, time-dependent load, and 4. Layered soil, time-dependent load. Feel free to modify the example to suit your own problem. Right click the link and use "Save link as".
-
-[ipyconsol.ipynb](https://github.com/sjbrandenberg/ucla_geotech_tools/raw/main/ipyconsol/ipyconsol.ipynb)
-
-### Web version
-A version of this software is available [here](https://www.uclageo.com/Consolidation) for uniform soil, constant load and [here](https://www.uclageo.com/Consolidaiton2) for layered soil, time-varying load.
-
-### References
-Brandenberg, S.J. (2017). "iConsol.js: A javascript implicit finite difference code for nonlinear consolidation and secondary compression." International Journal of Geomechanics, 17(6). [[journal](http://ascelibrary.org/doi/abs/10.1061/%28ASCE%29GM.1943-5622.0000843)] [[eScholarship](https://escholarship.org/uc/item/0wh3q8jh)]
