@@ -40,6 +40,7 @@ The options may be combined in any manner (e.g., [option 1, option A], [option 1
 Uniform soil has constant model coefficients, and either void ratio, OCR, or maximum past pressure is constant.
 
 ### Keyword Args:
+
 | parameter | type | description | required | default |
 |-----------|------|-------------|----------|---------|
 | ```N``` | int | number of elements | required for option 1 | |
