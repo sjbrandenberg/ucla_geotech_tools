@@ -37,6 +37,7 @@ get_ngawest2_T()
 ### get_response_spectrum(**kwargs)
 
 **Keyword Args:**  
+
 | parameter | type | description | required | default |
 |-----------|------|-------------|----------|---------|   
 | motions  | numpy array, dtype = float | M x N numpy array containing acceleration data, where M is the number of motions and N is the number of data points in each motion. All motions must have N data points. | x | |
