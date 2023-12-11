@@ -74,6 +74,7 @@ get_residual2(fchp *args)
 Return the high-pass corner frequency value that stabilizes the displacement of a ground motion record.  
   
 **Keyword Args:**  
+
 | parameter | type | description | required | default |
 |-----------|------|-------------|----------|---------|
 |```dt```   | float | time step in seconds (required)  |  x  |  |
