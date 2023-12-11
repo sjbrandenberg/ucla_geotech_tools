@@ -1,2 +1,2 @@
 sphinx_rtd_theme
-ext.sphinx.mathjax
+sphinx.ext.mathjax
