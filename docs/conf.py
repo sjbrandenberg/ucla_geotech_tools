@@ -22,7 +22,7 @@ copyright = '2021, Scott J. Brandenberg'
 author = 'Scott J. Brandenberg'
 
 # The full version, including alpha/beta/rc tags
-release = '1.0.2'
+release = '2.0.0'
 
 
 # -- General configuration ---------------------------------------------------
@@ -31,6 +31,7 @@ release = '1.0.2'
 # extensions coming with Sphinx (named 'sphinx.ext.*') or your custom
 # ones.
 extensions = [
+    'sphinx.ext.mathjax',
     "sphinx_rtd_theme",
     "recommonmark",
 ]
