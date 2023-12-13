@@ -1,5 +1,2 @@
 sphinx_rtd_theme
-recommonmark
-sphinx-markdown-tables
-sphinx-mathjax-offline
-sphinx-math-dollar
+myst-parser
