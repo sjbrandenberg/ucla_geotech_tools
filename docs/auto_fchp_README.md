@@ -12,47 +12,50 @@ The algorithm first selects {math}`f_{chp}` to satisfy criterion 1. It then chec
 The algorithm fits a polynomial of user-specified order to the filtered displacement record, and iterates on {math}`f_{chp}`  until the ratio of the amplitude of the polynomial to that of the displacement record is equal to a specified target. The acceleration record is pre-processed following these steps:
 
 1.	Define a Tukey window
-2.	Subtract the weighted mean from $acc$, where the weights are equal to the Tukey window coefficients 
-3.	Compute the Fourier transform, $F_{acc}$, and frequency array, $f$ 
-4.  Compute the Fourier coefficients of the displacement record using {eq}`Fdisp`
+2.	Subtract the weighted mean from {math}`acc`, where the weights are equal to the Tukey window coefficients 
+3.	Compute the Fourier transform, {math}`F_{acc}`, and frequency array, {math}`f` 
+4.  Compute the Fourier coefficients of the displacement record using Eq. {eq}`Fdisp`
 
-After pre-processing, a check is performed to determine whether the optimal value of {math}`f_{chp}` lies between $f_{chp,min}$ and $f_{chp,max}$. The check follows these steps:
+After pre-processing, a check is performed to determine whether the optimal value of {math}`f_{chp}` lies between {math}`f_{chp,min}` and {math}`f_{chp,max}`. The check follows these steps:
 
-5. Set {math}`f_{chp}` equal to $f_{chp,min}$
-6. Compute the filtered Fourier displacement coefficients $Fdisp_{filt}$ using Eq. 2.
-7. Compute the filtered displacement record by taking the inverse Fourier transform of $Fdisp_{filt}$
-8. Compute the residual $R1$ using Eq. 3
-9. Repeat steps 5 through 8 using $f_{chp,max}$ instead of $f_{chp,min}$
-10. If the sign of the residuals are equal, the root is not bracketed. Return $f_{chp,max}$ if the sign is positive, and return $f_{chp,min}$ if the sign is negative.
+5. Set {math}`f_{chp}` equal to {math}`f_{chp,min}`
+6. Compute the filtered Fourier displacement coefficients $Fdisp_{filt}$ using Eq. {eq}`Fdisp_filt`.
+7. Compute the filtered displacement record by taking the inverse Fourier transform of {math}`Fdisp_{filt}`
+8. Compute the residual {math}`R1` using Eq. {eq}`R1`
+9. Repeat steps 5 through 8 using $f_{chp,max}$ instead of {math}`f_{chp,min}`
+10. If the sign of the residuals are equal, the root is not bracketed. Return {math}`f_{chp,max}` if the sign is positive, and return {math}`f_{chp,min}` if the sign is negative.
 
-Finally, if the root is bracketed, use Ridders' method to find the value of {math}`f_{chp}` that satisfies Eq. 3. In this case, the Scipy package scipy.optimize.ridder is utilized.
+Finally, if the root is bracketed, use Ridders' method to find the value of {math}`f_{chp}` that satisfies Eq. {eq}`R1`. In this case, the Scipy package scipy.optimize.ridder is utilized.
 
 11. If the root is bracketed, solve for {math}`f_{chp}` using scipy.optimize.ridder()
 
 ```{math}
-:label: Fdisp
-$Fdisp = \frac{Facc}{-\left(2\pi f\right)^2}$
+:label: Fdisp  
+Fdisp = \frac{Facc}{-\left(2\pi f\right)^2}
 ```
 
-Equation 2:  
-  
-$Fdisp_{filt} = \frac{Fdisp}{\sqrt{1+\left(\frac{f_{chp}}{f_u}\right)^{2\cdot order}}}$
+```{math}
+:label: Fdisp_filt   
+Fdisp_{filt} = \frac{Fdisp}{\sqrt{1+\left(\frac{f_{chp}}{f_u}\right)^{2\cdot order}}}
+```
 
-Equation 3:  
-  
-$R1 = \frac{\left|disp_{fit}\right|}{\left|disp\right|} - target$
+```{math}
+:label: R1 
+R1 = \frac{\left|disp_{fit}\right|}{\left|disp\right|} - target
+```
 
 ## criterion 2 (optional)
-If the user chooses to use criterion 2, the algorithm checks the ratio of the initial portion of the displacement record with duration of _**disp_ratio_time**_ and compares it with the amplitude of the filtered displacement record. If the ratio is larger than _**disp_ratio_target**_, the algorithm iterates on $f_{chp}$ until the ratio is equal to _**disp_ratio_target**_. Criterion 2 follows these steps:
+If the user chooses to use criterion 2, the algorithm checks the ratio of the initial portion of the displacement record with duration of _**disp_ratio_time**_ and compares it with the amplitude of the filtered displacement record. If the ratio is larger than _**disp_ratio_target**_, the algorithm iterates on {math}`f_{chp}` until the ratio is equal to _**disp_ratio_target**_. Criterion 2 follows these steps:
 
-12. Extract the initial portion of the displacmeent record $disp_{init}$
-13. Using Eq. 4, compute the criterion 2 residual $R2$ for the value of $f_{chp}$ obtained for criterion 1.
-14. If $R2 \leq tol$, return $f_{chp}$
-15. If $R2 > tol$, follow the logic from criterion 1 using the scipy.optimize.ridder package to solve for $f_{chp}$ 
+12. Extract the initial portion of the displacmeent record {math}`disp_{init}`
+13. Using Eq. {eq}`R2`, compute the criterion 2 residual {math}`R2` for the value of {math}`f_{chp}` obtained for criterion 1.
+14. If {math}`R2 \leq tol`, return {math}`f_{chp}`
+15. If {math}`R2 > tol`, follow the logic from criterion 1 using the scipy.optimize.ridder package to solve for {math}`f_{chp}` 
 
-Equation 4:  
-  
-$R2 = \frac{\left|disp_{init}\right|}{\left|disp\right|} - target$
+```{math}
+:label: R2 
+R2 = \frac{\left|disp_{init}\right|}{\left|disp\right|} - target
+```
 
 ## Installation  
 ```python
@@ -101,7 +104,7 @@ fchp = get_fchp(dt=dt,acc=acc,target=0.02,tol=0.001,poly_order=6,maxiter=30,fchp
 ### get_residual1(fchp, *args):
 Return the residual defined as disp_fit/disp_filt - target.  
   
-** Args:**  
+**Args:**  
 
 | parameter | type | description |
 |-----------|------|-------------|
