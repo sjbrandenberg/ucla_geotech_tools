@@ -1,6 +1,6 @@
 # auto_fchp
 
-auto_fchp selects a high-pass corner frequency $f_{chp}$ for a single component ground motion acceleration record, $acc$. The algorithm uses two criteria to select $f_{chp}$:
+auto_fchp selects a high-pass corner frequency {math}`f_{chp}` for a single component ground motion acceleration record, $acc$. The algorithm uses two criteria to select $f_{chp}$:
 
 **criterion 1:** The amplitude of a polynomial fit to the displacement record must be a specified multiple of the amplitude of the displacement record  
 
