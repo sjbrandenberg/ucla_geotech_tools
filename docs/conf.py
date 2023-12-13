@@ -42,7 +42,8 @@ extensions = [
     "sphinx_rtd_theme",
     "recommonmark",
     "sphinx_markdown_tables",
-    "sphinx.ext.mathjax"
+    "sphinx.ext.mathjax",
+    "sphinx_math_dollar"
 ]
 
 # Add any paths that contain templates here, relative to this directory.
