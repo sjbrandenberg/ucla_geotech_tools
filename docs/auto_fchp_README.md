@@ -13,7 +13,7 @@ The algorithm fits a polynomial of user-specified order to the filtered displace
 
 1.	Define a Tukey window
 2.	Subtract the weighted mean from $acc$, where the weights are equal to the Tukey window coefficients 
-3.	Compute the Fourier transform, \(F_{acc}\), and frequency array, $f$
+3.	Compute the Fourier transform, $F_{acc}$, and frequency array, $f$ 
 4.  Compute the Fourier coefficients of the displacement record using Eq. 1
 
 After pre-processing, a check is performed to determine whether the optimal value of $f_{chp}$ lies between $f_{chp,min}$ and $f_{chp,max}$. The check follows these steps:
