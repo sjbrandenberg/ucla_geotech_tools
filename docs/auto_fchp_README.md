@@ -93,6 +93,7 @@ Return the high-pass corner frequency value that stabilizes the displacement of 
 **Example Commands:**  
 ```python
 fchp = get_fchp(dt=dt, acc=acc)
+
 fchp = get_fchp(dt=dt,acc=acc,target=0.02,tol=0.001,poly_order=6,maxiter=30,fchp_min=0.001,fchp_max=0.5,filter_order=5.0,tukey_alpha=0.05,apply_disp_ratio=1,disp_ratio_time=2,disp_ratio_target=0.02)
 ```
 
@@ -100,6 +101,7 @@ fchp = get_fchp(dt=dt,acc=acc,target=0.02,tol=0.001,poly_order=6,maxiter=30,fchp
 Return the residual defined as disp_fit/disp_filt - target.  
   
 ** Args:**  
+
 | parameter | type | description |
 |-----------|------|-------------|
 |```fchp```| float | High-pass corner frequency |
@@ -113,6 +115,7 @@ Return the residual defined as disp_fit/disp_filt - target.
 Return the residual defined as disp_init/disp - target.
 
 **Args:**  
+
 | parameter | type | description |
 |-----------|------|-------------|
 |```fchp```| float | High-pass corner frequency |
