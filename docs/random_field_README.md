@@ -1,6 +1,8 @@
 # random_field
 
-This function generates the random field using both Cholesky Decomposition method and Kriging
+This function generates the random field using both Cholesky Decomposition method and Kriging. Details are explained by Yang et al. (2022).  
+
+Yang, Y., Wang, P., and Brandenberg, S. J. (2022) "An algorithm for generating spatially correlated random fields using Cholesky decomposition and ordinary kriging." Computers and Geotechnics, 147. [[official version](https://doi.org/10.1016/j.compgeo.2022.104783)] [[open access](https://authors.elsevier.com/a/1f13c,63b%7EyYS2)]
 
 ## Installation
 ```bash
