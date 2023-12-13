@@ -34,16 +34,14 @@ source_parsers = {
 source_suffix = {
     '.rst': 'restructuredtext',
     '.md': 'markdown',
+    '.txt': 'markdown',
 }
 # Add any Sphinx extension module names here, as strings. They can be
 # extensions coming with Sphinx (named 'sphinx.ext.*') or your custom
 # ones.
 extensions = [
     "sphinx_rtd_theme",
-    "recommonmark",
-    "sphinx_markdown_tables",
-    "sphinx.ext.mathjax",
-    "sphinx_math_dollar"
+    "myst_parser",
 ]
 
 # Add any paths that contain templates here, relative to this directory.
