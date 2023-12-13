@@ -6,4 +6,4 @@ Collection of tools developed by the UCLA geotechnical research group. The tools
 3. response_spectrum: Computes pseudo-acceleration response spectra for an array of input acceleration time series
 4. auto_fchp: Selects high-pass corner frequency for ground motion processing
 # Documentation
-[https://ucla-geotech-tools.readthedocs.io/en/latest/](https://ucla-geotech-tools.readthedocs.io/en/latest/)
+[https://ucla-geotech-tools.readthedocs.io/en/latest/index.html](https://ucla-geotech-tools.readthedocs.io/en/latest/index.html)
