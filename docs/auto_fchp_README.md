@@ -19,10 +19,10 @@ The algorithm fits a polynomial of user-specified order to the filtered displace
 After pre-processing, a check is performed to determine whether the optimal value of {math}`f_{chp}` lies between {math}`f_{chp,min}` and {math}`f_{chp,max}`. The check follows these steps:
 
 5. Set {math}`f_{chp}` equal to {math}`f_{chp,min}`
-6. Compute the filtered Fourier displacement coefficients $Fdisp_{filt}$ using Eq. {eq}`Fdisp_filt`.
+6. Compute the filtered Fourier displacement coefficients {math}`Fdisp_{filt}` using Eq. {eq}`Fdisp_filt`.
 7. Compute the filtered displacement record by taking the inverse Fourier transform of {math}`Fdisp_{filt}`
 8. Compute the residual {math}`R1` using Eq. {eq}`R1`
-9. Repeat steps 5 through 8 using $f_{chp,max}$ instead of {math}`f_{chp,min}`
+9. Repeat steps 5 through 8 using {math}`f_{chp,max}` instead of {math}`f_{chp,min}`
 10. If the sign of the residuals are equal, the root is not bracketed. Return {math}`f_{chp,max}` if the sign is positive, and return {math}`f_{chp,min}` if the sign is negative.
 
 Finally, if the root is bracketed, use Ridders' method to find the value of {math}`f_{chp}` that satisfies Eq. {eq}`R1`. In this case, the Scipy package scipy.optimize.ridder is utilized.
