@@ -1,5 +1,5 @@
-ucla_geotech_tools documentation
-================================
+ucla_geotech_tools
+==================
 
 ucla_geotech_tools is a collection of python scripts developed by researchers in the UCLA geotechnical engineering group
 
