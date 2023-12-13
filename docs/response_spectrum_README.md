@@ -3,14 +3,14 @@
 response_spectrum computes a psuedo-acceleration response spectrum from an input ground motion or set of ground motions sampled at a constant frequency. It is also capable of computing rotated response spectra for two horizontal components (e.g., RotD50). Calculations for computing a response spectrum are performed in the frequency domain by:
 
 1. taking the Fourier transform of the input motion(s)
-2. convolving with the transfer function for the resonse of a single-degree-of-freedom (SDOF) oscillator with natural period $T$ and damping $$
+2. convolving with the transfer function for the resonse of a single-degree-of-freedom (SDOF) oscillator with natural period {math}`T` and damping {math}`D`
 4. computing the peak acceleration amplitude for the SDOF oscillator
 5. repeating steps 2 and 3 for a range of user-specified periods
 
 Calculations for RotD50 are performed by:
 
-1. Computing the response of an SDOF oscillator with a specific T and D for the two orthogonal horizontal motions, $motion1$, and $motion2$.
-2. Setting _**N_rot_angle**_ different rotation angles between 0 and $\pi$
+1. Computing the response of an SDOF oscillator with a specific T and D for the two orthogonal horizontal motions, {math}`motion1`, and {math}`motion2`.
+2. Setting _**N_rot_angle**_ different rotation angles between 0 and {math}`\pi`
 3. Computing convolved motion for each angle as motion_rot_conv = motion1_conv*cos(angle) - motion2_conv*sin(angle)
 4. Compute the maximum of each value of motion_rot_conv. This is called motion_rot_conv_max, and there is one value per angle.
 5. Compute the specified percentile value of the motion_rot_conv_max.
@@ -19,7 +19,7 @@ Calculations for RotD50 are performed by:
 
 response_spectrum does not perform any signal conditioning, which is assumed to be performed prior to invoking the response_spectrum command. I recommend performing the following steps prior to computing a response spectrum:
 
-1. Assign a Tukey window with $\alpha$ = 0.05, where $\alpha$ denotes the percentage of the signal at the beginning and end of the record for the window ramp up/down
+1. Assign a Tukey window with {math}`\alpha` = 0.05, where {math}`\alpha` denotes the percentage of the signal at the beginning and end of the record for the window ramp up/down
 2. Subtract the weighted mean from the signal, where the weights are equal to the Tukey window coefficients
 3. High-pass filter. You can try the ucla_geotech_tools.auto_fchp package for this.
 
