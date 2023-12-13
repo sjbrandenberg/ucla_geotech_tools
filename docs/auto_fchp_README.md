@@ -1,37 +1,38 @@
 # auto_fchp
 
-auto_fchp selects a high-pass corner frequency {math}`f_{chp}` for a single component ground motion acceleration record, $acc$. The algorithm uses two criteria to select $f_{chp}$:
+auto_fchp selects a high-pass corner frequency {math}`f_{chp}` for a single component ground motion acceleration record, $acc$. The algorithm uses two criteria to select {math}`f_{chp}`:
 
 **criterion 1:** The amplitude of a polynomial fit to the displacement record must be a specified multiple of the amplitude of the displacement record  
 
 **criterion 2:** The amplitude of the initial portion of the displacement record before the p-wave arrival must be less than or equal to a specified multiple of the amplitude of the displacement record
 
-The algorithm first selects $f_{chp}$ to satisfy criterion 1. It then checks criterion 2, and if necessary, increases $f_{chp}$ to satify criterion 2. Criterion 2 is optional.
+The algorithm first selects {math}`f_{chp}` to satisfy criterion 1. It then checks criterion 2, and if necessary, increases {math}`f_{chp}` to satify criterion 2. Criterion 2 is optional.
 
 ## criterion 1
-The algorithm fits a polynomial of user-specified order to the filtered displacement record, and iterates on $f_{chp}$  until the ratio of the amplitude of the polynomial to that of the displacement record is equal to a specified target. The acceleration record is pre-processed following these steps:
+The algorithm fits a polynomial of user-specified order to the filtered displacement record, and iterates on {math}`f_{chp}`  until the ratio of the amplitude of the polynomial to that of the displacement record is equal to a specified target. The acceleration record is pre-processed following these steps:
 
 1.	Define a Tukey window
 2.	Subtract the weighted mean from $acc$, where the weights are equal to the Tukey window coefficients 
 3.	Compute the Fourier transform, $F_{acc}$, and frequency array, $f$ 
-4.  Compute the Fourier coefficients of the displacement record using Eq. 1
+4.  Compute the Fourier coefficients of the displacement record using {eq}`Fdisp`
 
-After pre-processing, a check is performed to determine whether the optimal value of $f_{chp}$ lies between $f_{chp,min}$ and $f_{chp,max}$. The check follows these steps:
+After pre-processing, a check is performed to determine whether the optimal value of {math}`f_{chp}` lies between $f_{chp,min}$ and $f_{chp,max}$. The check follows these steps:
 
-5. Set $f_{chp}$ equal to $f_{chp,min}$
+5. Set {math}`f_{chp}` equal to $f_{chp,min}$
 6. Compute the filtered Fourier displacement coefficients $Fdisp_{filt}$ using Eq. 2.
 7. Compute the filtered displacement record by taking the inverse Fourier transform of $Fdisp_{filt}$
 8. Compute the residual $R1$ using Eq. 3
 9. Repeat steps 5 through 8 using $f_{chp,max}$ instead of $f_{chp,min}$
 10. If the sign of the residuals are equal, the root is not bracketed. Return $f_{chp,max}$ if the sign is positive, and return $f_{chp,min}$ if the sign is negative.
 
-Finally, if the root is bracketed, use Ridders' method to find the value of $f_{chp}$ that satisfies Eq. 3. In this case, the Scipy package scipy.optimize.ridder is utilized.
+Finally, if the root is bracketed, use Ridders' method to find the value of {math}`f_{chp}` that satisfies Eq. 3. In this case, the Scipy package scipy.optimize.ridder is utilized.
 
-11. If the root is bracketed, solve for $f_{chp}$ using scipy.optimize.ridder()
+11. If the root is bracketed, solve for {math}`f_{chp}` using scipy.optimize.ridder()
 
-Equation 1:  
-  
+```{math}
+:label: Fdisp
 $Fdisp = \frac{Facc}{-\left(2\pi f\right)^2}$
+```
 
 Equation 2:  
   
