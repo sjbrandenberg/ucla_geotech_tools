@@ -3,11 +3,6 @@ ucla_geotech_tools
 
 ucla_geotech_tools is a collection of python scripts developed by researchers in the UCLA geotechnical engineering group
 
-Documentation
-_____________
-
-https://ucla_geotech_tools.readthedocs.io/en/latest/
-
 Source Code
 ___________
 
