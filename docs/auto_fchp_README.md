@@ -35,8 +35,7 @@ Fdisp = \frac{Facc}{-\left(2\pi f\right)^2}
 ```
 
 ```{math}
-:label: Fdisp_filt   
-Fdisp_{filt} = \frac{Fdisp}{\sqrt{1+\left(\frac{f_{chp}}{f_u}\right)^{2\cdot order}}}
+Fdisp_{filt} = \frac{Fdisp}{\sqrt{1+\left(\frac{f_{chp}}{f_u}\right)^{2\cdot order}}} :label: Fdisp_filt   
 ```
 
 ```{math}
