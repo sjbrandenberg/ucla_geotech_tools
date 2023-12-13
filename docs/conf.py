@@ -40,7 +40,6 @@ source_suffix = {
 # extensions coming with Sphinx (named 'sphinx.ext.*') or your custom
 # ones.
 extensions = [
-    "furo",
     "myst_parser",
 ]
 
