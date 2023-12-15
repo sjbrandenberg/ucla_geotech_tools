@@ -37,5 +37,5 @@ jobs:
       - name: Publish package distributions to PyPI
         uses: pypa/gh-action-pypi-publish@release/v1
         with:
-          password: ${{ secrets.TOKEN }}
+          password: ${{ secrets.PYPI_API_KEY }}
           repository-url: https://test.pypi.org/legacy/
