@@ -9,6 +9,7 @@
 name: Publish to PyPI
 
 on:
+  workflow-dispatch
   push:
     tags: 
       - 'v[0-9]+.[0-9]+.[0-9]+'
