@@ -7,15 +7,15 @@ def get_ngawest2_T():
 def next_fast_len(target):
     """Return a number of datapoints for efficient calculation of fast Fourier transform. Used in zero padding"""
     I2 = 0
-    while(2.0**I2<target):
+    while(2**I2<target):
         I2+=1
     I3 = 0
-    while(3.0**I3<target):
+    while(3**I3<target):
         I3+=1
     I5 = 0
-    while(5.0**I5<target):
+    while(5**I5<target):
         I5+=1
-    return np.min([2.0**I2, 3.0**I3, 5.0**I5])
+    return int(np.min([2**I2, 3**I3, 5**I5]))
 
 def get_ARS(T,D,motions,dt,zeropad):
     """Return pseudo-acceleration response spectrum for a Numpy array containing acceleration records
