@@ -39,7 +39,7 @@ def test_response_spectrum2():
         T = rs.get_ngawest2_T()
         D = 0.05
         zeropad = 0
-        Sa = rs.get_response_spectrum(motions=motions,D=D,T=T,dt=dt,zeropad=0,RotD=50,N_rot_angle=100)
+        Sa = rs.get_response_spectrum(motions=motions,D=D,T=T,dt=dt,zeropad=1,RotD=50,N_rot_angle=100)
         Sa = rs.get_response_spectrum(motions=motions,D=D,T=T,dt=dt,zeropad=0,RotD=[0,50,100],N_rot_angle=100)
         print('test_response_spectrum1 passed')
     except:
