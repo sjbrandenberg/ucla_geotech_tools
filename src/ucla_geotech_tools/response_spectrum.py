@@ -28,7 +28,7 @@ def get_ARS(T,D,motions,dt,zeropad):
         zeropad = 0 for no zero padding, 1 for zero padding. Zero padding makes fast Fourier transform faster
     """
     if(zeropad==1):
-        NFFT = next_fast_len(len(motions))
+        NFFT = next_fast_len(len(motions[0]))
     else:
         NFFT = len(motions[0])
     freq = np.fft.rfftfreq(NFFT,dt)
