@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "ucla_geotech_tools"
-version = "2.0.1"
+version = "2.0.2"
 description = "A collection of software tools developed by the UCLA geotechnical group"
 authors = ["Scott J. Brandenberg"]
 license = "LICENSE.txt"
