@@ -85,3 +85,4 @@ ax.set_xlabel('Frequency [Hz]')
 ax.set_ylabel('Fourier amplitude [g-s]')
 ax.legend()
 ```
+![image showing Fourier amplitude spectra and effective amplitude spectrum](../images/eas_example.png)
