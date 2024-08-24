@@ -61,7 +61,7 @@ An example is shown below using the two ground motion records that can be found 
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
-import eas
+import ucla_geotech_tools.eas as eas
 
 acc1 = pd.read_csv('20210102144223_BK_BDM_HHE.txt',sep=' ')['acc(g)'].values
 acc2 = pd.read_csv('20210102144223_BK_BDM_HHN.txt',sep=' ')['acc(g)'].values
