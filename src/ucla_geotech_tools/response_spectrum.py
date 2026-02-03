@@ -35,7 +35,7 @@ def get_ARS(T,D,motions,dt,zeropad):
     Fmotions = np.fft.rfft(motions)
     Sa = [None]*len(motions)
     for i, Fmotion in enumerate(Fmotions):
-        Fconvolved_motion = Fmotion/(1.0+2.0j*D*freq*T[:,np.newaxis]-freq**2*T[:,np.newaxis]**2)
+        Fconvolved_motion = Fmotion (1.0 + 2.0j * D * freq * T[:,np.newaxis]) / (1.0 + 2.0j * D * freq * T[:,np.newaxis] - freq**2 * T[:,np.newaxis]**2)
         convolved_motion = np.fft.irfft(Fconvolved_motion)
         Sa[i] = np.max(np.absolute(convolved_motion),axis=1)
     return np.asarray(Sa)
@@ -66,8 +66,8 @@ def get_rotD_ARS(T, D, motion1, motion2, dt, zeropad, RotD, N_rot_angle):
     Fmotion2 = np.fft.rfft(np.asarray(motion2),NFFT)
     
     for k in range(len(T)):
-        FConvolvedMotion1 = Fmotion1/(1.0+2.0j*D*freq*T[:,np.newaxis]-freq**2*T[:,np.newaxis]**2)
-        FConvolvedMotion2 = Fmotion2/(1.0+2.0j*D*freq*T[:,np.newaxis]-freq**2*T[:,np.newaxis]**2)
+        FConvolvedMotion1 = Fmotion1 * (1.0 + 2.0j * D * freq * T[:,np.newaxis]) / (1.0 + 2.0j * D * freq * T[:,np.newaxis] - freq**2 * T[:,np.newaxis]**2)
+        FConvolvedMotion2 = Fmotion2 * (1.0 + 2.0j * D * freq * T[:,np.newaxis]) / (1.0 + 2.0j * D * freq * T[:,np.newaxis] - freq**2 * T[:,np.newaxis]**2)
         ConvolvedMotion1 = np.fft.irfft(FConvolvedMotion1)
         ConvolvedMotion2 = np.fft.irfft(FConvolvedMotion2)
         RotConvolvedMotion = np.vstack((ConvolvedMotion1,ConvolvedMotion2)).T@rot
@@ -109,3 +109,4 @@ def get_response_spectrum(**kwargs):
         return(get_rotD_ARS(T, D, motions[0], motions[1], dt, zeropad, RotD, N_rot_angle))
     else:
         return get_ARS(T,D,motions,dt,zeropad)
+
