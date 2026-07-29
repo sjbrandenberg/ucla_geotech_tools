@@ -1,6 +1,7 @@
 import scipy as sp
 import numpy as np
 
+
 def get_residual1(fchp, *args):
     """Return the residual defined as disp_fit/disp_filt - target.
 
@@ -121,14 +122,14 @@ def get_fchp(**kwargs):
                 + " is not a valid argument. Please see documentation. Using default values for all parameters that are not specified."
             )
             return
-    if('dt' not in kwargs):
-        print('You must specify dt')
+    if "dt" not in kwargs:
+        print("You must specify dt")
         return
-    if('acc' not in kwargs):
-        print('You must specify acc')
+    if "acc" not in kwargs:
+        print("You must specify acc")
         return
-    dt = kwargs['dt']
-    acc = kwargs['acc']
+    dt = kwargs["dt"]
+    acc = kwargs["acc"]
     target = kwargs.get("target", 0.02)
     tol = kwargs.get("tol", 0.001)
     poly_order = kwargs.get("poly_order", 6)
