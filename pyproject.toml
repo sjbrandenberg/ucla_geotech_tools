@@ -11,9 +11,9 @@ packages = [
 ]
 
 [tool.poetry.dependencies]
-python = ">=3.8"
-numpy = ">=1.22"
-scipy = ">=1.8"
+python = "^3.9"
+numpy = "^2"
+scipy = "^1.8"
 
 [tool.poetry.group.test.dependencies]
 
@@ -21,11 +21,10 @@ scipy = ">=1.8"
 pytest = "^7.4.3"
 
 [build-system]
-requires = ["poetry-core","Cython","numpy"]
+requires = ["poetry-core","cython","numpy"]
 build-backend = "poetry.core.masonry.api"
 
 [tool.poetry.build]
 generate-setup-file = false
-script = 'build.py'
 
 
