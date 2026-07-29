@@ -30,10 +30,10 @@ jobs:
           python-version: 3.9
       - name: Poetry image
         uses: abatilo/actions-poetry@v2
-      - name: Install the project dependencies
-        run: poetry install
       - name: Sync Lock File
         run: poetry lock
+      - name: Install the project dependencies
+        run: poetry install
       - name: Build package
         run: poetry build
       - name: Publish package distributions to PyPI
