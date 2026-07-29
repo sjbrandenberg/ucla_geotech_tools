@@ -1,7 +1,7 @@
 import numpy as np
 import os
 import shutil
-from distutils.core import Distribution, Extension
+from setuptools import Distribution, Extension
 from Cython.Build import build_ext, cythonize
 
 cython_dir = os.path.join("src","ucla_geotech_tools")
