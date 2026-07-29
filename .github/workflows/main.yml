@@ -33,7 +33,7 @@ jobs:
       - name: Install the project dependencies
         run: poetry install
       - name: Sync Lock File
-        run: poetry lock --no-update
+        run: poetry lock
       - name: Build package
         run: poetry build
       - name: Publish package distributions to PyPI
