@@ -13,8 +13,7 @@ Brandenberg, S. J. (2017) "iConsol. js: JavaScript implicit finite-difference co
 pip install ucla_geotech_tools
 ```
 ## Requirements
-numpy >= 1.22  
-C compiler (e.g., gcc, Visual Studio Build Tools)
+numpy and scipy (installed automatically with ucla_geotech_tools). No C compiler is needed.
 
 ## Functions  
 
