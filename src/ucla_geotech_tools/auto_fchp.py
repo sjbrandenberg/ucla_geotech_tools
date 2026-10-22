@@ -12,9 +12,10 @@ def get_residual1(fchp, *args):
         poly_order = Order of polynomial to fit to filtered displacement
         target = Desired ratio of polynomial fit amplitude to displacement signal amplitude
         freq = Numpy array containing frequency values
+        filter_order = Order of the Butterworth high-pass filter
 
     Computed variables:
-        filt = Coefficients of 5th order Butterworth filter
+        filt = Amplitude of the zero-phase Butterworth high-pass filter
         Fdisp_filt = Numpy array containing Fourier coefficients of filtered displacement record
         disp_filt = Numpy array containing filtered displacement record
         coef = Coefficients of polynomial fit to displacement record
@@ -30,8 +31,10 @@ def get_residual1(fchp, *args):
     filt[freq > 0] = 1 / np.sqrt(1 + (fchp / freq[freq > 0]) ** (2 * filter_order))
     Fdisp_filt = Fdisp * filt
     disp_filt = np.fft.irfft(Fdisp_filt)
-    coef = np.polyfit(time[0 : len(disp_filt)], disp_filt, poly_order)
-    disp_fit = np.polyval(coef, time)
+    # Fit in normalized time so that high polynomial orders remain well conditioned
+    tn = time[0 : len(disp_filt)] / time[len(disp_filt) - 1]
+    coef = np.polyfit(tn, disp_filt, poly_order)
+    disp_fit = np.polyval(coef, tn)
     return np.max(np.abs(disp_fit)) / np.max(np.abs(disp_filt)) - target
 
 
@@ -45,9 +48,10 @@ def get_residual2(fchp, *args):
         disp_time = Duration of initial portion of record before p-wave arrival
         disp_target = Desired ratio of amplitude of initial portion of displacement record to amplitude of displacement record
         freq = Numpy array containing frequency values
+        filter_order = Order of the Butterworth high-pass filter
 
     Computed variables:
-        filt = Coefficients of 5th order Butterworth filter
+        filt = Amplitude of the zero-phase Butterworth high-pass filter
         Fdisp_filt = Numpy array containing Fourier coefficients of filtered displacement record
         disp_filt = Numpy array containing filtered displacement record
     """
@@ -67,6 +71,24 @@ def get_residual2(fchp, *args):
     )
 
 
+def solve_objective(residual, fchp_low, fchp_high, args, tol, maxiter):
+    """Return the lowest value of fchp between fchp_low and fchp_high that satisfies an objective.
+
+    The objective is satisfied when residual(fchp, *args) <= 0. If it is satisfied at fchp_low, fchp_low is
+    returned. If it is not satisfied at fchp_high, fchp_high is returned. Otherwise the root is found with
+    scipy.optimize.ridder.
+    """
+    R_low = residual(fchp_low, *args)
+    if R_low <= 0:
+        return fchp_low
+    R_high = residual(fchp_high, *args)
+    if R_high >= 0:
+        return fchp_high
+    return sp.optimize.ridder(
+        residual, fchp_low, fchp_high, args=args, xtol=tol, maxiter=maxiter
+    )
+
+
 def get_fchp(**kwargs):
     """Return the high-pass corner frequency value that stabilizes the displacement of a ground motion record.
 
@@ -80,10 +102,11 @@ def get_fchp(**kwargs):
     of fchp are provided that bracket the root, and the Scipy package solves for the root that minimizes the
     objective function. The tolerance is on the value of fchp (i.e., xtol in optimize.ridder)
 
-    A value of fchp is obtained first to satisfy objective 1. Objective 2 is optional, and if it is applied,
-    the value of fchp from objective 1 is checked against objective 2. If the residual from objective 2 is
-    less than or equal to zero, fchp is set equal to the value from objective 1. Otherwise, iterations are
-    performed to satisfy objective 2.
+    A value of fchp is obtained first to satisfy objective 1. If the objective is satisfied at fchp_min,
+    fchp = fchp_min, and if it cannot be satisfied at fchp_max, fchp = fchp_max. Objective 2 is optional, and
+    if it is applied, the value of fchp from objective 1 is checked against objective 2. If the residual from
+    objective 2 is less than or equal to zero, fchp is set equal to the value from objective 1. Otherwise,
+    iterations are performed between that value and fchp_max to satisfy objective 2.
 
     Keyword Args:
         dt (float): time step in seconds (required)
@@ -94,10 +117,11 @@ def get_fchp(**kwargs):
         maxiter: maximum number of iterations (default=30)
         fchp_min: minimum frequency in Hz to consider for fchp (default=0.001)
         fchp_max: maximum frequency in Hz to consider for fchp (default=0.5)
+        filter_order: order of the zero-phase Butterworth high-pass filter (default=5.0)
         tukey_alpha: alpha parameter for scipy.signal.windows.tukey (default=0.05)
         apply_disp_ratio: flag to indicate whether to apply objective 2 (default=0)
         disp_ratio_time: duration in seconds of the initial portion of the record before the p-wave arrival (default=30)
-        disp_ratio_target: target ratio of amplitude of initial portion of displacement record to amplitude of displacement record
+        disp_ratio_target: target ratio of amplitude of initial portion of displacement record to amplitude of displacement record (default=0.05)
     """
     options = [
         "dt",
@@ -119,7 +143,8 @@ def get_fchp(**kwargs):
         if key not in options:
             print(
                 key
-                + " is not a valid argument. Please see documentation. Using default values for all parameters that are not specified."
+                + " is not a valid argument. Please see documentation. Valid arguments are: "
+                + ", ".join(options)
             )
             return
     if "dt" not in kwargs:
@@ -129,7 +154,7 @@ def get_fchp(**kwargs):
         print("You must specify acc")
         return
     dt = kwargs["dt"]
-    acc = kwargs["acc"]
+    acc = np.asarray(kwargs["acc"], dtype=float)
     target = kwargs.get("target", 0.02)
     tol = kwargs.get("tol", 0.001)
     poly_order = kwargs.get("poly_order", 6)
@@ -148,50 +173,18 @@ def get_fchp(**kwargs):
     window = sp.signal.windows.tukey(len(acc), alpha=tukey_alpha)
     meanacc = np.average(acc, weights=window)
     acc = window * (acc - meanacc)
-    time = np.linspace(0, dt * len(acc), len(acc))
+    time = np.arange(len(acc)) * dt
     Facc = np.fft.rfft(acc)
     freq = np.fft.rfftfreq(len(acc), dt)
     Fdisp = np.zeros(len(Facc), dtype="complex")
     Fdisp[freq > 0] = Facc[freq > 0] / -((2 * np.pi * freq[freq > 0]) ** 2)
 
     # Solve fchp for objective 1
-    R0 = get_residual1(fchp_min, Fdisp, time, poly_order, target, freq, filter_order)
-    R2 = get_residual1(fchp_max, Fdisp, time, poly_order, target, freq, filter_order)
-    if np.sign(R0) != np.sign(R2):
-        fchp = sp.optimize.ridder(
-            get_residual1,
-            fchp_min,
-            fchp_max,
-            args=(Fdisp, time, poly_order, target, freq, filter_order),
-            xtol=tol,
-            maxiter=maxiter,
-        )
-    elif np.sign(R0) < 0:
-        fchp = fchp_min
-    elif np.sign(R2) > 0:
-        fchp = fchp_max
+    args1 = (Fdisp, time, poly_order, target, freq, filter_order)
+    fchp = solve_objective(get_residual1, fchp_min, fchp_max, args1, tol, maxiter)
 
     # Solve fchp for objective 2 if apply_disp_ratio is not zero
     if apply_disp_ratio == 0:
         return fchp
-    R0 = get_residual2(
-        fchp, Fdisp, time, disp_ratio_time, disp_ratio_target, freq, filter_order
-    )
-    R2 = get_residual2(
-        fchp_max, Fdisp, time, disp_ratio_time, disp_ratio_target, freq, filter_order
-    )
-    if np.sign(R0) != np.sign(R2):
-        fchp = sp.optimize.ridder(
-            get_residual2,
-            fchp,
-            fchp_max,
-            args=(Fdisp, time, disp_ratio_time, disp_ratio_target, freq, filter_order),
-            xtol=tol,
-            maxiter=maxiter,
-        )
-    elif np.sign(R0) < 0:
-        fchp = fchp
-    elif np.sign(R2) > 0:
-        fchp = fchp_max
-
-    return fchp
+    args2 = (Fdisp, time, disp_ratio_time, disp_ratio_target, freq, filter_order)
+    return solve_objective(get_residual2, fchp, fchp_max, args2, tol, maxiter)

@@ -1,6 +1,4 @@
-# cython: language_level=3
-
-"""ipyconsol is a nonlinear implicit finite difference solver for one-dimensional consolidation of compressible soil with secondary compression. 
+"""ipyconsol is a nonlinear implicit finite difference solver for one-dimensional consolidation of compressible soil with secondary compression.
 ipyconsol is the Python version of the Javascript package iConsol.js published by Brandenberg (2017).
 This code is an extension of Brandenberg (2017) because it the soil can be non-uniform and the loading can vary in time.
 For spatially variable soil, material constants are entered as arrays, where the array length is equal to the number of nodes.
@@ -10,6 +8,9 @@ Brandenberg, S. J. (2017) "iConsol. js: JavaScript implicit finite-difference co
 
 """
 import numpy as np
+from scipy.linalg import solve_banded
+
+LN10 = np.log(10.0)
 
 
 def get_inputs(**kwargs):
@@ -50,6 +51,7 @@ def get_inputs(**kwargs):
         dsigv: change in total stress (required, scalar or array)
         ocrvoidratiotype: 0 OCR, 1 eo, 2 maximum past pressure (required, scalar or array)
         ocrvoidratio: value of OCR, eo, or maximum past pressure, depending on value of ocrvoidratiotype (required, scalar or array)
+        ru: initial excess pore pressure ratio, prior to addition of dsigv (optional, scalar or array, default = 0)
         gammaw: unit weight of water (optional, default = 9.81)
         tol: convergence tolerance(optional, default = 1.0e-8)
         pa: atmospheric pressure (optional, default = 101.325)
@@ -76,9 +78,9 @@ def get_inputs(**kwargs):
         if req not in kwargs:
             print("You must specify " + req)
             return
-    if isinstance(kwargs["Cc"], (int, float)):
+    if np.ndim(kwargs["Cc"]) == 0:
         for req in required:
-            if not isinstance(kwargs[req], (int, float)):
+            if np.ndim(kwargs[req]) != 0:
                 print("If Cc is a number, " + req + " must also be a number")
                 return
         required1 = ["N", "H"]
@@ -92,65 +94,45 @@ def get_inputs(**kwargs):
                 return
         N = int(kwargs["N"])
         H = float(kwargs["H"])
-        Cc = np.full(N + 1, kwargs["Cc"], dtype=float)
-        Cr = np.full(N + 1, kwargs["Cr"], dtype=float)
-        sigvref = np.full(N + 1, kwargs["sigvref"], dtype=float)
-        esigvref = np.full(N + 1, kwargs["esigvref"], dtype=float)
-        Gs = np.full(N + 1, kwargs["Gs"], dtype=float)
-        kref = np.full(N + 1, kwargs["kref"], dtype=float)
-        ekref = np.full(N + 1, kwargs["ekref"], dtype=float)
-        Ck = np.full(N + 1, kwargs["Ck"], dtype=float)
-        Ca = np.full(N + 1, kwargs["Ca"], dtype=float)
-        tref = np.full(N + 1, kwargs["tref"], dtype=float)
-        qo = float(kwargs["qo"])
-        dsigv = np.full(N + 1, kwargs["dsigv"], dtype=float)
-        ocrvoidratiotype = np.full(N + 1, kwargs["ocrvoidratiotype"], dtype=np.int32)
-        ocrvoidratio = np.full(N + 1, kwargs["ocrvoidratio"], dtype=float)
         depth = np.linspace(0, H, num=N + 1, dtype=float, endpoint=True)
-        ru = np.full(N + 1, kwargs.get("ru", 0.0), dtype=float)
-
-    elif isinstance(kwargs["Cc"], (np.ndarray, (list, np.ndarray))):
+    elif isinstance(kwargs["Cc"], (list, tuple, np.ndarray)):
         for req in required:
             if req == "qo":
                 continue
             if len(kwargs[req]) != len(kwargs["Cc"]):
                 print(
                     "All vectors must have the same length using input option 2, layered soil. Cc has length = "
-                    + str(len(kwargs["Cc"])),
-                    " while " + req + " has length = " + str(len(kwargs[req])),
+                    + str(len(kwargs["Cc"]))
+                    + " while "
+                    + req
+                    + " has length = "
+                    + str(len(kwargs[req]))
                 )
                 return
-        (
-            Cc,
-            Cr,
-            sigvref,
-            esigvref,
-            Gs,
-            kref,
-            ekref,
-            Ck,
-            Ca,
-            tref,
-            qo,
-            dsigv,
-            ocrvoidratiotype,
-            ocrvoidratio,
-        ) = [kwargs[req] for req in required]
-        if "depth" in kwargs:
-            depth = kwargs["depth"]
-        else:
+        if "depth" not in kwargs:
             print("You must specify depth if you specify Cc as a list or array.")
             return
-        if "ru" in kwargs:
-            if isinstance(kwargs["ru"], (list, np.ndarray)):
-                ru = kwargs["ru"]
-            else:
-                print("If Cc is a number, ru must also be a number")
-        else:
-            ru = np.full(kwargs["N"] + 1, 0.0, dtype=float)
+        depth = np.asarray(kwargs["depth"], dtype=float)
+        if len(depth) != len(kwargs["Cc"]):
+            print("depth must have the same length as Cc")
+            return
     else:
         print("Cc must be either a scalar, list, or np.ndarray")
         return
+
+    # Scalars are broadcast to one value per node
+    def nodal(value, dtype=float):
+        return np.broadcast_to(np.asarray(value, dtype=dtype), depth.shape).copy()
+
+    Cc, Cr, sigvref, esigvref, Gs, kref, ekref, Ck, Ca, tref = [
+        nodal(kwargs[req]) for req in required[:10]
+    ]
+    qo = float(kwargs["qo"])
+    dsigv = nodal(kwargs["dsigv"])
+    ocrvoidratiotype = nodal(kwargs["ocrvoidratiotype"], dtype=np.int32)
+    ocrvoidratio = nodal(kwargs["ocrvoidratio"])
+    ru = nodal(kwargs.get("ru", 0.0))
+
     if "Ntime" in kwargs:
         if "tmax" not in kwargs:
             print("You must specify tmax if you specify Ntime")
@@ -171,12 +153,12 @@ def get_inputs(**kwargs):
             print(
                 "time and loadfactor must have the same length. Currently time has length = "
                 + str(len(kwargs["time"]))
-                + "and loadfactor has length = "
+                + " and loadfactor has length = "
                 + str(len(kwargs["loadfactor"]))
             )
             return
-        time = kwargs["time"]
-        loadfactor = kwargs["loadfactor"]
+        time = np.asarray(kwargs["time"], dtype=float)
+        loadfactor = np.asarray(kwargs["loadfactor"], dtype=float)
     else:
         print("You must specify either Ntime and tmax, or time and loadfactor")
         return
@@ -211,8 +193,15 @@ def get_inputs(**kwargs):
     ]
 
 
+def _scalar_if_scalar(value, *inputs):
+    """Return value as a float if every input is a scalar, so scalar calls return scalars"""
+    if all(np.ndim(x) == 0 for x in inputs):
+        return float(value)
+    return value
+
+
 def get_ktest(e, ekref, kref, Ck):
-    """Return hydraulic conductivity value
+    """Return hydraulic conductivity value(s)
 
     Args:
         e = void ratio
@@ -220,13 +209,30 @@ def get_ktest(e, ekref, kref, Ck):
         kref = hydraulic conductivity for point on e-logk line corresponding to ekref
         Ck = coefficient of permeability variation (i.e., slope of e-logk line)
     """
-    return kref * pow(10.0, (e - ekref) / Ck)
+    return kref * 10.0 ** ((np.asarray(e) - ekref) / Ck)
+
+
+def _get_sigmap(elast, sigvlast, eref, sigvref, Cc, Cr):
+    """Return maximum past pressure implied by void ratio and effective stress"""
+    return 10.0 ** (
+        (eref - elast + Cc * np.log10(sigvref) - Cr * np.log10(sigvlast)) / (Cc - Cr)
+    )
+
+
+def _creep(e, sigv, esigvref, sigvref, Cc, alpha):
+    """Return exp((e - esigvref)/alpha + Cc/alpha*log10(sigv/sigvref)), which sets the rate of secondary
+    compression following Bjerrum's time-line concept. Zero where alpha = 0 (no secondary compression)."""
+    with np.errstate(divide="ignore", invalid="ignore", over="ignore"):
+        value = np.exp(
+            (e - esigvref) / alpha + Cc / alpha * np.log10(sigv / sigvref)
+        )
+    return np.where(alpha > 0, value, 0.0)
 
 
 def get_avtest(elast, sigvlast, sigvtest, eref, sigvref, Cc, Cr):
     """Return compressibility av = -de/dsigv'
 
-    Args:
+    Args (scalars or arrays):
         elast: void ratio at beginning of time step
         sigvlast: vertical effective stress at beginning of time step
         sigvtest: vertical effective stress at end of time step
@@ -235,25 +241,28 @@ def get_avtest(elast, sigvlast, sigvtest, eref, sigvref, Cc, Cr):
         Cc: virgin compression index
         Cr: recompression index
     """
-    sigmap = 10.0 ** (
-        (eref - elast + Cc * np.log10(sigvref) - Cr * np.log10(sigvlast)) / (Cc - Cr)
-    )
-    if sigmap <= sigvlast and sigvtest > sigvlast:
-        De = Cc * np.log10(sigvtest / sigvlast)
-    elif sigmap > sigvtest or sigvtest < sigvlast:
-        De = Cr * np.log10(sigvtest / sigvlast)
-    else:
-        De = Cr * np.log10(sigmap / sigvlast) + Cc * np.log10(sigvtest / sigmap)
-    if (
-        abs((sigmap - sigvlast) / sigvlast) < 1.0e-5
-        and abs((sigvlast - sigvtest) / sigvtest) < 1.0e-5
-    ):
-        av = Cc / sigvlast / np.log(10.0)
-    elif sigmap > sigvtest and abs((sigvlast - sigvtest) / sigvtest) < 1.0e-5:
-        av = Cr / sigvlast / np.log(10.0)
-    else:
-        av = De / (sigvtest - sigvlast)
-    return av
+    sigmap = _get_sigmap(elast, sigvlast, eref, sigvref, Cc, Cr)
+    with np.errstate(divide="ignore", invalid="ignore"):
+        virgin = (sigmap <= sigvlast) & (sigvtest > sigvlast)
+        recompression = ~virgin & ((sigmap > sigvtest) | (sigvtest < sigvlast))
+        De = np.where(
+            virgin,
+            Cc * np.log10(sigvtest / sigvlast),
+            np.where(
+                recompression,
+                Cr * np.log10(sigvtest / sigvlast),
+                Cr * np.log10(sigmap / sigvlast) + Cc * np.log10(sigvtest / sigmap),
+            ),
+        )
+        unchanged = np.abs((sigvlast - sigvtest) / sigvtest) < 1.0e-5
+        on_ncl = (np.abs((sigmap - sigvlast) / sigvlast) < 1.0e-5) & unchanged
+        below_ncl = ~on_ncl & (sigmap > sigvtest) & unchanged
+        av = np.where(
+            on_ncl,
+            Cc / sigvlast / LN10,
+            np.where(below_ncl, Cr / sigvlast / LN10, De / (sigvtest - sigvlast)),
+        )
+    return _scalar_if_scalar(av, elast, sigvlast, sigvtest)
 
 
 def get_etest(
@@ -271,9 +280,13 @@ def get_etest(
     ulast,
     dt,
 ):
-    """Returns a trial value of void ratio at the end of the current time step at a particular depth
+    """Returns trial value(s) of void ratio at the end of the current time step
 
-    Args:
+    Newton-Raphson iterations are performed for all nodes with alpha > 0 at once, and each node stops
+    iterating when its residual is below tolerance. A node that does not converge in 100 iterations
+    returns -1.
+
+    Args (scalars or arrays):
         etest: trial void ratio at the end of the time step
         elast: void ratio at the beginning of the time step
         eref: void ratio for any point on normal consolidation line
@@ -289,61 +302,57 @@ def get_etest(
         dt: time step
     """
     etol = 1.0e-12
-    if alpha > 0:
-        I = 0
-        res = (
-            avtest * (utest - ulast)
-            - 0.5
-            * dt
-            * alpha
-            / tref
-            * (
-                np.exp(
-                    (etest - eref) / alpha + Cc / alpha * np.log10(sigvtest / sigvref)
-                )
-                + np.exp(
-                    (elast - eref) / alpha + Cc / alpha * np.log10(sigvlast / sigvref)
-                )
-            )
-            - etest
-            + elast
-        )
-        while abs(res) > etol:
-            dres_detest = (
-                -0.5
-                * dt
-                / tref
-                * np.exp(
-                    (etest - eref) / alpha + Cc / alpha * np.log10(sigvtest / sigvref)
-                )
-                - 1.0
-            )
-            etest = etest - res / dres_detest
-            res = (
-                avtest * (utest - ulast)
+    inputs = np.broadcast_arrays(
+        *[
+            np.asarray(x, dtype=float)
+            for x in (etest, elast, eref, alpha, tref, sigvtest, sigvlast, sigvref, Cc, avtest, utest, ulast)
+        ]
+    )
+    shape = inputs[0].shape
+    et, el, er, a, tr, st, sl, sr, cc, av, ut, ul = [x.ravel() for x in inputs]
+    out = el + av * (ut - ul)
+    creep = np.flatnonzero(a > 0)
+    if creep.size:
+        et, el, er, a, tr, st, sl, sr, cc, av, ut, ul = [
+            x[creep] for x in (et, el, er, a, tr, st, sl, sr, cc, av, ut, ul)
+        ]
+        e = et.copy()
+        last = np.exp((el - er) / a + cc / a * np.log10(sl / sr))
+
+        def residual(e, k):
+            return (
+                av[k] * (ut[k] - ul[k])
                 - 0.5
                 * dt
-                * alpha
-                / tref
-                * (
-                    np.exp(
-                        (etest - eref) / alpha
-                        + Cc / alpha * np.log10(sigvtest / sigvref)
-                    )
-                    + np.exp(
-                        (elast - eref) / alpha
-                        + Cc / alpha * np.log10(sigvlast / sigvref)
-                    )
-                )
-                - etest
-                + elast
+                * a[k]
+                / tr[k]
+                * (np.exp((e[k] - er[k]) / a[k] + cc[k] / a[k] * np.log10(st[k] / sr[k])) + last[k])
+                - e[k]
+                + el[k]
             )
-            I += 1
-            if I == 100:
-                return -1
-    else:
-        etest = elast + avtest * (utest - ulast)
-    return etest
+
+        res = residual(e, slice(None))
+        active = np.flatnonzero(np.abs(res) > etol)
+        for _ in range(100):
+            if active.size == 0:
+                break
+            k = active
+            dres_detest = (
+                -0.5 * dt / tr[k] * np.exp((e[k] - er[k]) / a[k] + cc[k] / a[k] * np.log10(st[k] / sr[k]))
+                - 1.0
+            )
+            e[k] = e[k] - res[k] / dres_detest
+            res[k] = residual(e, k)
+            active = k[np.abs(res[k]) > etol]
+        e[active] = -1.0
+        out[creep] = e
+    return _scalar_if_scalar(out.reshape(shape), etest, elast, avtest, utest)
+
+
+def _flux(u, k, dz2, i, j):
+    """Return the finite difference flux terms of the residual, per dt/gammaw, at nodes i with neighbors
+    j on one side and an impermeable boundary on the other (used for the undrained boundary node)"""
+    return 0.5 * k[i] * (u[j] - u[i]) / dz2 + 0.125 * (u[i] - u[j]) * (k[i] - k[j]) / dz2
 
 
 def get_residual(
@@ -392,173 +401,67 @@ def get_residual(
         drainagetype: 0 = double-drained, 1 = single drained through top, 2 = single-drained through bottom
         N: number of elements
     """
-
-    residual = np.zeros(N + 1, dtype=float)
-
-    alpha = Ca / np.log(10.0)
-    dzlast = np.zeros(len(ulast), dtype=np.float64)
-    dztest = np.zeros(len(ulast), dtype=np.float64)
-    dzlast[1:-1] = 0.5 * (zlast[2:] - zlast[:-2])
-    dztest[1:-1] = 0.5 * (ztest[2:] - ztest[:-2])
+    alpha = Ca / LN10
+    s, m, p = slice(1, N), slice(0, N - 1), slice(2, N + 1)
+    dzlast2 = (0.5 * (zlast[p] - zlast[m])) ** 2
+    dztest2 = (0.5 * (ztest[p] - ztest[m])) ** 2
     residual = -avtest / (1.0 + elast) * (utest - ulast)
-    residual[1:-1] += (
+    residual += (
         0.5
+        * alpha
         * dt
-        / gammaw
-        * ktest[1:-1]
-        * (utest[2:] - 2 * utest[1:-1] + utest[:-2])
-        / dztest[1:-1] ** 2
-    )
-    residual[1:-1] += (
-        0.5
-        * dt
-        / gammaw
-        * klast[1:-1]
-        * (ulast[2:] - 2 * ulast[1:-1] + ulast[:-2])
-        / dzlast[1:-1] ** 2
-    )
-    residual[1:-1] += (
-        0.125
-        * dt
-        / gammaw
-        * (utest[2:] - utest[:-2])
-        * (ktest[2:] - ktest[:-2])
-        / dztest[1:-1] ** 2
-    )
-    residual[1:-1] += (
-        0.125
-        * dt
-        / gammaw
-        * (ulast[2:] - ulast[:-2])
-        * (klast[2:] - klast[:-2])
-        / dzlast[1:-1] ** 2
-    )
-    if alpha > 0:
-        residual[1:-1] += (
-            0.5
-            * alpha
-            / dt
-            / tref[1:-1]
-            / (1 + elast[1:-1])
-            * np.exp(
-                (etest[1:-1] - esigvref[1:-1]) / alpha
-                + Cc[1:-1] / alpha * np.log10(sigvtest[1:-1] / sigvref[1:-1])
-            )
+        / tref
+        / (1.0 + elast)
+        * (
+            _creep(etest, sigvtest, esigvref, sigvref, Cc, alpha)
+            + _creep(elast, sigvlast, esigvref, sigvref, Cc, alpha)
         )
-        residual[1:-1] += (
-            0.5
-            * alpha
-            / dt
-            / tref[1:-1]
-            / (1 + elast[1:-1])
-            * np.exp(
-                (elast[1:-1] - esigvref[1:-1]) / alpha
-                + Cc[1:-1] / alpha * np.log10(sigvlast[1:-1] / sigvref[1:-1])
-            )
-        )
-    if drainagetype == 0:
-        residual[0] = 0.0
-        residual[N] = 0.0
+    )
+    residual[s] += (
+        0.5 * dt / gammaw * ktest[s] * (utest[p] - 2.0 * utest[s] + utest[m]) / dztest2
+        + 0.5 * dt / gammaw * klast[s] * (ulast[p] - 2.0 * ulast[s] + ulast[m]) / dzlast2
+        + 0.125 * dt / gammaw * (utest[p] - utest[m]) * (ktest[p] - ktest[m]) / dztest2
+        + 0.125 * dt / gammaw * (ulast[p] - ulast[m]) * (klast[p] - klast[m]) / dzlast2
+    )
     if drainagetype == 1:
-        residual[0] = 0.0
-        dzlast[N] = zlast[N] - zlast[N - 1]
-        dztest[N] = ztest[N] - ztest[N - 1]
         residual[N] += (
-            0.5 * dt / gammaw * ktest[N] * (utest[N - 1] - utest[N]) / dztest[N] ** 2
-        )
-        residual[N] += (
-            0.5 * dt / gammaw * klast[N] * (ulast[N - 1] - ulast[N]) / dzlast[N] ** 2
-        )
-        residual[N] += (
-            0.125
-            * dt
+            dt
             / gammaw
-            * (utest[N] - utest[N - 1])
-            * (ktest[N] - ktest[N - 1])
-            / dztest[N] ** 2
-        )
-        residual[N] += (
-            0.125
-            * dt
-            / gammaw
-            * (ulast[N] - ulast[N - 1])
-            * (klast[N] - klast[N - 1])
-            / dzlast[N] ** 2
-        )
-        if alpha > 0:
-            residual[N] += (
-                0.5
-                * alpha
-                * dt
-                / tref[N]
-                / (1 + elast[N])
-                * np.exp(
-                    (etest[N] - esigvref[N]) / alpha
-                    + Cc[N] / alpha * np.log10(sigvtest[N] / sigvref[N])
-                )
+            * (
+                _flux(utest, ktest, (ztest[N] - ztest[N - 1]) ** 2, N, N - 1)
+                + _flux(ulast, klast, (zlast[N] - zlast[N - 1]) ** 2, N, N - 1)
             )
-            residual[N] += (
-                0.5
-                * alpha
-                * dt
-                / tref[N]
-                / (1 + elast[N])
-                * np.exp(
-                    (elast[N] - esigvref[N]) / alpha
-                    + Cc[N] / alpha * np.log10(sigvlast[N] / sigvref[N])
-                )
-            )
+        )
     if drainagetype == 2:
+        residual[0] += (
+            dt
+            / gammaw
+            * (
+                _flux(utest, ktest, (ztest[1] - ztest[0]) ** 2, 0, 1)
+                + _flux(ulast, klast, (zlast[1] - zlast[0]) ** 2, 0, 1)
+            )
+        )
+    # Drained boundaries have prescribed pore pressure
+    if drainagetype in (0, 1):
+        residual[0] = 0.0
+    if drainagetype in (0, 2):
         residual[N] = 0.0
-        dzlast[0] = zlast[1] - zlast[0]
-        dztest[0] = ztest[1] - ztest[0]
-        residual[0] += (
-            0.5 * dt / gammaw * ktest[0] * (utest[1] - utest[0]) / dztest[N] ** 2
-        )
-        residual[0] += (
-            0.5 * dt / gammaw * klast[0] * (ulast[1] - ulast[0]) / dzlast[N] ** 2
-        )
-        residual[0] += (
-            0.125
-            * dt
-            / gammaw
-            * (utest[1] - utest[0])
-            * (ktest[1] - ktest[0])
-            / dztest[0] ** 2
-        )
-        residual[0] += (
-            0.125
-            * dt
-            / gammaw
-            * (ulast[1] - ulast[0])
-            * (klast[1] - klast[0])
-            / dzlast[0] ** 2
-        )
-        if alpha > 0:
-            residual[0] += (
-                0.5
-                * alpha
-                * dt
-                / tref[0]
-                / (1 + elast[0])
-                * np.exp(
-                    (etest[1] - esigvref[0]) / alpha
-                    + Cc[0] / alpha * np.log10(sigvtest[0] / sigvref[0])
-                )
-            )
-            residual[0] += (
-                0.5
-                * alpha
-                * dt
-                / tref[0]
-                / (1 + elast[0])
-                * np.exp(
-                    (elast[1] - esigvref[0]) / alpha
-                    + Cc[0] / alpha * np.log10(sigvlast[0] / sigvref[0])
-                )
-            )
-
     return residual
+
+
+def _solve_tridiagonal(lower, diag, upper, rhs, drainagetype, N):
+    """Solve the tridiagonal system for the nodes whose pore pressure is unknown.
+
+    lower, diag, and upper are the coefficients of u[i-1], u[i], and u[i+1] in the equation for node i.
+    Drained boundary nodes are excluded, and zero is returned at those nodes."""
+    lo, hi = {0: (1, N), 1: (1, N + 1), 2: (0, N)}[drainagetype]
+    ab = np.zeros((3, hi - lo))
+    ab[0, 1:] = upper[lo : hi - 1]
+    ab[1] = diag[lo:hi]
+    ab[2, :-1] = lower[lo + 1 : hi]
+    x = np.zeros(N + 1)
+    x[lo:hi] = solve_banded((1, 1), ab, rhs[lo:hi])
+    return x
 
 
 def get_utest2(
@@ -590,7 +493,9 @@ def get_utest2(
     drainagetype,
     pa,
 ):
-    """Returns an array of pore pressures using Newton-Raphson iterations to satisfy tol at every node
+    """Returns an array of pore pressures from one Newton-Raphson iteration on the residuals
+
+    ktest, ztest, avtest, sigvtest, and pa are not used, and are retained for backward compatibility.
 
     Args:
         N: number of elements
@@ -621,816 +526,33 @@ def get_utest2(
         drainagetype: 0 = double-drained, 1 = single drained through top, 2 = single-drained through bottom
         pa: atmospheric pressure
     """
-    if drainagetype == 0:
-        arrayLength = N - 1
-    else:
-        arrayLength = N
-    a = np.zeros(arrayLength, dtype=float)
-    b = np.zeros(arrayLength, dtype=float)
-    c = np.zeros(arrayLength, dtype=float)
-    x = np.zeros(arrayLength, dtype=float)
-    uout = np.zeros(len(utest), dtype=float)
-    a[0] = 0.0
-    c[arrayLength - 1] = 0.0
+    # The residual at node i depends only on pore pressures at nodes i-1, i, and i+1, so the Jacobian is
+    # tridiagonal. It is found by finite differences, perturbing every third node at once.
+    def residual(u):
+        sigv, av, e, k, z = _get_trial_state(
+            u, ulast, sigvlast, elast, etest, Cc, Cr, Ca, esigvref, sigvref, tref, ekref, kref, Ck, zlast, zlast[-1], dt
+        )
+        return get_residual(
+            ulast, u, elast, e, klast, k, av, zlast, z, sigvlast, sigv, gammaw, Ca, Cc, sigvref, esigvref, dt, tref,
+            drainagetype, N,
+        )
 
-    alpha = Ca / np.log(10.0)
-    dzlast[1:-1] = 0.5 * (zlast[2:] - zlast[:-2])
-    dztest[1:-1] = 0.5 * (ztest[2:] - zlast[:-2])
-    dresdutest = -avtest / (1.0 + elast) - ktest / dt / dztest**2 / gammaw
-    dresduim1test[1:-1] = (
-        0.5
-        * dt
-        / gammaw
-        / dztest[1:-1] ** 2
-        * (ktest[1:-1] + 0.25 * (ktest[:-2] - ktest[2:]))
-    )
-    dresduip1test[1:-1] = (
-        0.5
-        * dt
-        / gammaw
-        / dztest[1:-1] ** 2
-        * (ktest[1:-1] + 0.25 * (ktest[2:] - ktest[:-2]))
-    )
-    dresdavtest = (ulast - utest) / (1.0 + elast)
-    dresdktest[1:-1] = (
-        0.5
-        * dt
-        / gammaw
-        / dztest[1:-1] ** 2
-        * (utest[:-2] - 2.0 * utest[1:-1] + utest[2:])
-    )
-    dresdkim1test[1:-1] = (
-        0.125 * dt / gammaw / dztest[1:-1] ** 2 * (utest[:-2] - utest[2:])
-    )
-    dresdkim1test[1:-1] = (
-        0.125 * dt / gammaw / dztest[1:-1] ** 2 * (utest[2:] - utest[:-2])
-    )
-    if alpha > 0:
-        dresdsigvtest = (
-            0.5
-            * dt
-            * Cc
-            / np.log(10.0)
-            / sigvtest
-            / tref
-            / (1.0 + elast)
-            * np.exp(
-                (etest - esigvref) / alpha + Cc / alpha * np.log10(sigvtest / sigvref)
-            )
-        )
-        dresdetest = (
-            0.5
-            * dt
-            / tref
-            / (1.0 + elast)
-            * np.exp(
-                (etest - esigvref) / alpha + Cc / alpha * np.log10(sigvtest / sigvref)
-            )
-        )
-        detestdutest = avtest / (
-            1.0
-            + 0.5
-            * dt
-            / tref
-            * np.exp(
-                (etest - esigvref) / alpha + Cc / alpha * np.log10(sigvtest / sigvref)
-            )
-        )
-        deim1testduim1test[1:-1] = avtest[:-2] / (
-            1.0
-            + 0.5
-            * dt
-            / tref[:-2]
-            * np.exp(
-                (etest[:-2] - esigvref[:-2]) / alpha
-                + Cc[:-2] / alpha * np.log10(sigvtest[:-2] / sigvref[:-2])
-            )
-        )
-        deip1testduip1test[1:-1] = avtest[2:] / (
-            1.0
-            + 0.5
-            * dt
-            / tref[2:]
-            * np.exp(
-                (etest[2:] - esigvref[2:]) / alpha
-                + Cc[2:] / alpha * np.log10(sigvtest[2:] / sigvref[2:])
-            )
-        )
-        detestdsigvtest = (
-            0.5
-            * Cc
-            * dt
-            / tref
-            / sigvtest
-            / np.log(10.0)
-            * np.exp(
-                (etest - esigvref) / alpha + Cc / alpha * np.log10(sigvtest / sigvref)
-            )
-            / (
-                1.0
-                + 0.5
-                * dt
-                / tref
-                * np.exp(
-                    (etest - esigvref) / alpha
-                    + Cc / alpha * np.log10(sigvtest / sigvref)
-                )
-            )
-        )
-    else:
-        dresdsigvtest = np.zeros(N - 1, dtype=float)
-        dresdetest = np.zeros(N - 1, dtype=float)
-        detestdutest = np.copy(avtest)
-        deim1testduim1test = np.copy(avtest[:-2])
-        deip1testduip1test = np.copy(avtest[2:])
-    dresddztest[1:-1] = (
-        -dt
-        / gammaw
-        / dztest[1:-1] ** 3
-        * (
-            ktest[1:-1] * (utest[:-2] - 2.0 * utest[1:-1] + utest[2:])
-            + 0.25 * (ktest[2:] - ktest[:-2]) * (utest[2:] - utest[:-2])
-        )
-    )
-    dktestdetest[1:-1] = kref * np.log(10.0) / Ck * 10.0 ** (etest - ekref) / Ck
-    dkim1testdeim1test[1:-1] = (
-        kref[:-2]
-        * np.log(10.0)
-        / Ck[:-2]
-        * 10.0 ** ((etest[:-2] - ekref[:-2]) / Ck[:-2])
-    )
-    dkip1testdeip1test[1:-1] = (
-        kref[2:] * np.log(10.0) / Ck[2:] * 10.0 ** ((etest[2:] - ekref[2:]) / Ck[2:])
-    )
-    sigmap = 10.0 ** (
-        (esigvref - elast + Cc * np.log10(sigvref) - Cr * np.log10(sigvlast))
-        / (Cc - Cr)
-    )
-    ## Need to use filters here instead of if statements
-    filt1 = np.fabs((sigvtest - sigvlast) / sigvlast) > 1.0e-10 * pa
-    filt2 = (sigmap <= sigvlast) & (sigvtest > sigvlast)
-    filt3 = (sigmap > sigvtest) & (sigvtest < sigvlast)
-    davtestdsigvtest[filt1] = (
-        Cc * (sigvtest - sigvtest * np.log(sigvtest / sigmap) - sigvlast)
-        - Cr * sigvtest * np.log(sigmap / sigvlast)
-    ) / (sigvtest * np.log(10.0) * (sigvtest - sigvlast) * (sigvtest - sigvlast))
-    davtestdsigvtest[filt1 & filt2] = (
-        Cc
-        * (sigvtest - sigvtest * np.log(sigvtest[i] / sigvlast[i]) - sigvlast[i])
-        / (
-            sigvtest[i]
-            * np.log(10.0)
-            * (sigvtest[i] - sigvlast[i])
-            * (sigvtest[i] - sigvlast[i])
-        )
-    )
-
-    if np.fabs((sigvtest[i] - sigvlast[i]) / sigvlast[i]) > 1.0e-10 * pa:
-        if sigmap <= sigvlast[i] and sigvtest[i] > sigvlast[i]:
-            davtestdsigvtest = (
-                Cc[i]
-                * (
-                    sigvtest[i]
-                    - sigvtest[i] * np.log(sigvtest[i] / sigvlast[i])
-                    - sigvlast[i]
-                )
-                / (
-                    sigvtest[i]
-                    * np.log(10.0)
-                    * (sigvtest[i] - sigvlast[i])
-                    * (sigvtest[i] - sigvlast[i])
-                )
-            )
-        elif sigmap > sigvtest[i] or sigvtest[i] < sigvlast[i]:
-            davtestdsigvtest = (
-                Cr[i]
-                * (
-                    sigvtest[i]
-                    - sigvtest[i] * np.log(sigvtest[i] / sigvlast[i])
-                    - sigvlast[i]
-                )
-                / (
-                    sigvtest[i]
-                    * np.log(10.0)
-                    * (sigvtest[i] - sigvlast[i])
-                    * (sigvtest[i] - sigvlast[i])
-                )
-            )
-        else:
-            davtestdsigvtest = (
-                Cc[i]
-                * (
-                    sigvtest[i]
-                    - sigvtest[i] * np.log(sigvtest[i] / sigmap)
-                    - sigvlast[i]
-                )
-                - Cr[i] * sigvtest[i] * np.log(sigmap / sigvlast[i])
-            ) / (
-                sigvtest[i]
-                * np.log(10.0)
-                * (sigvtest[i] - sigvlast[i])
-                * (sigvtest[i] - sigvlast[i])
-            )
-    else:
-        if np.fabs((sigvtest[i] - sigmap) / sigmap) <= 1.0e-10 * pa:
-            davtestdsigvtest = -Cc[i] * np.log(10.0) / sigvtest[i] / sigvtest[i]
-        else:
-            davtestdsigvtest = -Cr[i] * np.log(10.0) / sigvtest[i] / sigvtest[i]
-    ddztestdetest = dzlast / (1.0 + elast[i])
-    dresdu = (
-        dresdutest
-        - dresdsigvtest
-        + dresdktest * dktestdetest * detestdutest
-        - dresdavtest * davtestdsigvtest
-        + dresddztest * ddztestdetest * detestdutest
-        + dresdetest * (detestdutest - detestdsigvtest)
-    )
-
-    for i in range(1, N, 1):
-        dresddztest = (
-            -dt
-            / gammaw
-            / dztest
-            / dztest
-            / dztest
-            * (
-                ktest[i] * (utest[i - 1] - 2.0 * utest[i] + utest[i + 1])
-                + 0.25 * (ktest[i + 1] - ktest[i - 1]) * (utest[i + 1] - utest[i - 1])
-            )
-        )
-        dktestdetest = (
-            kref[i] * np.log(10.0) / Ck[i] * ((etest[i] - ekref[i]) / Ck[i]) ** 10.0
-        )
-        dkim1testdeim1test = (
-            kref[i - 1]
-            * np.log(10.0)
-            / Ck[i - 1]
-            * ((etest[i - 1] - ekref[i - 1]) / Ck[i - 1]) ** 10.0
-        )
-        dkip1testdeip1test = (
-            kref[i + 1]
-            * np.log(10.0)
-            / Ck[i + 1]
-            * ((etest[i + 1] - ekref[i + 1]) / Ck[i + 1]) ** 10.0
-        )
-        sigmap = (
-            (
-                esigvref[i]
-                - elast[i]
-                + Cc[i] * np.log10(sigvref[i])
-                - Cr[i] * np.log10(sigvlast[i])
-            )
-            / (Cc[i] - Cr[i])
-        ) ** 10.0
-
-        if np.fabs((sigvtest[i] - sigvlast[i]) / sigvlast[i]) > 1.0e-10 * pa:
-            if sigmap <= sigvlast[i] and sigvtest[i] > sigvlast[i]:
-                davtestdsigvtest = (
-                    Cc[i]
-                    * (
-                        sigvtest[i]
-                        - sigvtest[i] * np.log(sigvtest[i] / sigvlast[i])
-                        - sigvlast[i]
-                    )
-                    / (
-                        sigvtest[i]
-                        * np.log(10.0)
-                        * (sigvtest[i] - sigvlast[i])
-                        * (sigvtest[i] - sigvlast[i])
-                    )
-                )
-            elif sigmap > sigvtest[i] or sigvtest[i] < sigvlast[i]:
-                davtestdsigvtest = (
-                    Cr[i]
-                    * (
-                        sigvtest[i]
-                        - sigvtest[i] * np.log(sigvtest[i] / sigvlast[i])
-                        - sigvlast[i]
-                    )
-                    / (
-                        sigvtest[i]
-                        * np.log(10.0)
-                        * (sigvtest[i] - sigvlast[i])
-                        * (sigvtest[i] - sigvlast[i])
-                    )
-                )
-            else:
-                davtestdsigvtest = (
-                    Cc[i]
-                    * (
-                        sigvtest[i]
-                        - sigvtest[i] * np.log(sigvtest[i] / sigmap)
-                        - sigvlast[i]
-                    )
-                    - Cr[i] * sigvtest[i] * np.log(sigmap / sigvlast[i])
-                ) / (
-                    sigvtest[i]
-                    * np.log(10.0)
-                    * (sigvtest[i] - sigvlast[i])
-                    * (sigvtest[i] - sigvlast[i])
-                )
-        else:
-            if np.fabs((sigvtest[i] - sigmap) / sigmap) <= 1.0e-10 * pa:
-                davtestdsigvtest = -Cc[i] * np.log(10.0) / sigvtest[i] / sigvtest[i]
-            else:
-                davtestdsigvtest = -Cr[i] * np.log(10.0) / sigvtest[i] / sigvtest[i]
-        ddztestdetest = dzlast / (1.0 + elast[i])
-        dresdu = (
-            dresdutest
-            - dresdsigvtest
-            + dresdktest * dktestdetest * detestdutest
-            - dresdavtest * davtestdsigvtest
-            + dresddztest * ddztestdetest * detestdutest
-            + dresdetest * (detestdutest - detestdsigvtest)
-        )
-        if drainagetype == 0 or drainagetype == 1:
-            b[i - 1] = dresdu
-            if i > 1:
-                a[i - 1] = (
-                    dresduim1test
-                    + dresdkim1test * dkim1testdeim1test * deim1testduim1test
-                )
-            if i < N - 1:
-                c[i - 1] = (
-                    dresduip1test
-                    + dresdkip1test * dkip1testdeip1test * deip1testduip1test
-                )
-        if drainagetype == 2:
-            b[i] = dresdu
-            if i > 1:
-                a[i] = (
-                    dresduim1test
-                    + dresdkim1test * dkim1testdeim1test * deim1testduim1test
-                )
-            if i < N - 1:
-                c[i] = (
-                    dresduip1test
-                    + dresdkip1test * dkip1testdeip1test * deip1testduip1test
-                )
-    if drainagetype == 1:
-        alpha = Ca[N] / np.log(10.0)
-        dztest = 0.5 * (ztest[N] - ztest[N - 2])
-        dzlast = 0.5 * (zlast[N] - zlast[N - 2])
-        dresduip1test = (
-            0.5
-            * dt
-            / gammaw
-            / dztest
-            / dztest
-            * (ktest[N - 1] + 0.25 * (ktest[N] - ktest[N - 2]))
-        )
-        dresdkip1test = -0.5 * dt / gammaw / dztest / dztest * (utest[N - 2] - utest[N])
-        dkip1testdeip1test = (
-            kref[N] * np.log(10.0) / Ck[N] * ((etest[N] - ekref[N]) / Ck[N]) ** 10.0
-        )
-        if alpha > 0:
-            deip1testduip1test = avtest[N] / (
-                1.0
-                + 0.5
-                * dt
-                / tref[N]
-                * np.exp(
-                    (etest[N] - esigvref[N]) / alpha
-                    + Cc[N] / alpha * np.log10(sigvtest[N] / sigvref[N])
-                )
-            )
-        else:
-            deip1testduip1test = avtest[N]
-        c[N - 2] = (
-            dresduip1test + dresdkip1test * dkip1testdeip1test * deip1testduip1test
-        )
-        dzlast = zlast[N] - zlast[N - 1]
-        dztest = ztest[N] - ztest[N - 1]
-        dresdutest = -avtest[N] / (
-            1.0 + elast[N]
-        ) - 0.125 * dt / gammaw / dztest / dztest * (3.0 * ktest[N] + ktest[N - 1])
-        dresduim1test = (
-            0.125 * dt / gammaw / dztest / dztest * (3.0 * ktest[N] + ktest[N - 1])
-        )
-        dresdavtest = (ulast[N] - utest[N]) / (1.0 + elast[N])
-        dresdktest = -0.375 * dt / gammaw / dztest / dztest * (utest[N] - utest[N - 1])
-        dresdkim1test = (
-            -0.125 * dt / gammaw / dztest / dztest * (utest[N] - utest[N - 1])
-        )
-        if alpha > 0.0:
-            dresdsigvtest = (
-                0.5
-                * dt
-                * Cc[N]
-                / np.log(10.0)
-                / sigvtest[N]
-                / tref[N]
-                / (1.0 + elast[N])
-                * np.exp(
-                    (etest[N] - esigvref[N]) / alpha
-                    + Cc[N] / alpha * np.log10(sigvtest[N] / sigvref[N])
-                )
-            )
-            dresdetest = (
-                0.5
-                * dt
-                / tref[N]
-                / (1.0 + elast[N])
-                * np.exp(
-                    (etest[N] - esigvref[N]) / alpha
-                    + Cc[N] / alpha * np.log10(sigvtest[N] / sigvref[N])
-                )
-            )
-            detestdutest = avtest[N] / (
-                1.0
-                + 0.5
-                * dt
-                / tref[N]
-                * np.exp(
-                    (etest[N] - esigvref[N]) / alpha
-                    + Cc[N] / alpha * np.log10(sigvtest[N] / sigvref[N])
-                )
-            )
-            deim1testduim1test = avtest[N - 1] / (
-                1.0
-                + 0.5
-                * dt
-                / tref[N]
-                * np.exp(
-                    (etest[N - 1] - esigvref[N]) / alpha
-                    + Cc[N] / alpha * np.log10(sigvtest[N - 1] / sigvref[N])
-                )
-            )
-            deip1testduip1test = avtest[N] / (
-                1.0
-                + 0.5
-                * dt
-                / tref[N]
-                * np.exp(
-                    (etest[N] - esigvref[N]) / alpha
-                    + Cc[N] / alpha * np.log10(sigvtest[N] / sigvref[N])
-                )
-            )
-            detestdsigvtest = (
-                0.5
-                * Cc[N]
-                * dt
-                / tref[N]
-                / sigvtest[N]
-                / np.log(10.0)
-                * np.exp(
-                    (etest[N] - esigvref[N]) / alpha
-                    + Cc[N] / alpha * np.log10(sigvtest[N] / sigvref[N])
-                )
-                / (
-                    1.0
-                    + 0.5
-                    * dt
-                    / tref[N]
-                    * np.exp(
-                        (etest[N] - esigvref[N]) / alpha
-                        + Cc[N] / alpha * np.log10(sigvtest[N] / sigvref[N])
-                    )
-                )
-            )
-        else:
-            dresdsigvtest = 0.0
-            dresdetest = 0.0
-            detestdutest = avtest[N]
-            deim1testduim1test = avtest[N - 1]
-            deip1testduip1test = avtest[N]
-            detestdsigvtest = 0.0
-        dresddztest = (
-            0.25
-            * dt
-            / gammaw
-            / dztest
-            / dztest
-            / dztest
-            * (3.0 * ktest[N] + ktest[N - 1])
-            * (utest[N] - utest[N - 1])
-        )
-        dktestdetest = (
-            kref[N] * np.log(10.0) / Ck[N] * ((etest[N] - ekref[N]) / Ck[N]) ** 10.0
-        )
-        dkim1testdeim1test = (
-            kref[N - 1]
-            * np.log(10.0)
-            / Ck[N - 1]
-            * np.pow(10.0, (etest[N - 1] - ekref[N - 1]) / Ck[N - 1])
-        )
-        sigmap = np.pow(
-            10.0,
-            (
-                esigvref[N]
-                - elast[N]
-                + Cc[N] * np.log10(sigvref[N])
-                - Cr[N] * np.log10(sigvlast[N])
-            )
-            / (Cc[N] - Cr[N]),
-        )
-        if np.fabs((sigvtest[N] - sigvlast[N]) / sigvlast[N]) > 1.0e-10 * pa:
-            if sigmap <= sigvlast[N] and sigvtest[N] > sigvlast[N]:
-                davtestdsigvtest = (
-                    Cc[N]
-                    * (
-                        sigvtest[N]
-                        - sigvtest[N] * np.log(sigvtest[N] / sigvlast[N])
-                        - sigvlast[N]
-                    )
-                    / (
-                        sigvtest[N]
-                        * np.log(10.0)
-                        * (sigvtest[N] - sigvlast[N])
-                        * (sigvtest[N] - sigvlast[N])
-                    )
-                )
-            elif sigmap > sigvtest[N] or sigvtest[N] < sigvlast[N]:
-                davtestdsigvtest = (
-                    Cr[N]
-                    * (
-                        sigvtest[N]
-                        - sigvtest[N] * np.log(sigvtest[N] / sigvlast[N])
-                        - sigvlast[N]
-                    )
-                    / (
-                        sigvtest[N]
-                        * np.log(10.0)
-                        * (sigvtest[N] - sigvlast[N])
-                        * (sigvtest[N] - sigvlast[N])
-                    )
-                )
-            else:
-                davtestdsigvtest = (
-                    Cc[N]
-                    * (
-                        sigvtest[N]
-                        - sigvtest[N] * np.log(sigvtest[N] / sigmap)
-                        - sigvlast[N]
-                    )
-                    - Cr[N] * sigvtest[N] * np.log(sigmap / sigvlast[N])
-                ) / (
-                    sigvtest[N]
-                    * np.log(10.0)
-                    * (sigvtest[N] - sigvlast[N])
-                    * (sigvtest[N] - sigvlast[N])
-                )
-        else:
-            if np.fabs((sigvtest[N] - sigmap) / sigmap) <= 1.0e-10 * pa:
-                davtestdsigvtest = -Cc[N] * np.log(10.0) / sigvtest[N] / sigvtest[N]
-            else:
-                davtestdsigvtest = -Cr[N] * np.log(10.0) / sigvtest[N] / sigvtest[N]
-        ddztestdetest = dzlast / (1.0 + elast[N])
-        dresdu = (
-            dresdutest
-            - dresdsigvtest
-            + dresdktest * dktestdetest * detestdutest
-            - dresdavtest * davtestdsigvtest
-            + dresddztest * ddztestdetest * detestdutest
-            + dresdetest * (detestdutest - detestdsigvtest)
-        )
-        b[N - 1] = dresdu
-        a[N - 1] = (
-            dresduim1test + dresdkim1test * dkim1testdeim1test * deim1testduim1test
-        )
-    if drainagetype == 2:
-        alpha = Ca[0] / np.log(10.0)
-        dzlast = 0.5 * (zlast[2] - zlast[0])
-        dztest = 0.5 * (ztest[2] - ztest[0])
-        dresduim1test = (
-            0.5
-            * dt
-            / gammaw
-            / dztest
-            / dztest
-            * (ktest[1] + 0.25 * (ktest[0] - ktest[2]))
-        )
-        dresdkim1test = 0.125 * dt / gammaw / dztest / dztest * (utest[0] - utest[2])
-        dkim1testdeim1test = (
-            kref[0] * np.log(10.0) / Ck[0] * pow(10.0, (etest[0] - ekref[0]) / Ck[0])
-        )
-        if alpha > 0:
-            deim1testduim1test = avtest[0] / (
-                1.0
-                + 0.5
-                * dt
-                / tref[0]
-                * np.exp(
-                    (etest[0] - esigvref[0]) / alpha
-                    + Cc[0] / alpha * np.log10(sigvtest[0] / sigvref[0])
-                )
-            )
-        else:
-            deim1testduim1test = avtest[0]
-        a[1] = dresduim1test + dresdkim1test * dkim1testdeim1test * deim1testduim1test
-        dzlast = zlast[1] - zlast[0]
-        dztest = ztest[1] - ztest[0]
-        dresdutest = -avtest[0] / (
-            1.0 + elast[0]
-        ) - 0.125 * dt / gammaw / dztest / dztest * (3.0 * ktest[0] + ktest[1])
-        dresduip1test = (
-            0.125 * dt / gammaw / dztest / dztest * (3.0 * ktest[0] + ktest[1])
-        )
-        dresdktest = -0.375 * dt / gammaw / dztest / dztest * (utest[0] - utest[1])
-        dresdkip1test = -0.125 * dt / gammaw / dztest / dztest * (ulast[0] - ulast[1])
-        dresddztest = (
-            0.25
-            * dt
-            / gammaw
-            / dztest
-            / dztest
-            / dztest
-            * (3.0 * ktest[0] + ktest[1])
-            * (utest[0] - utest[1])
-        )
-        dresdavtest = (ulast[0] - utest[0]) / (1.0 + elast[0])
-        if alpha > 0.0:
-            dresdsigvtest = (
-                0.5
-                * dt
-                * Cc[0]
-                / np.log(10.0)
-                / sigvtest[0]
-                / tref[0]
-                / (1.0 + elast[0])
-                * np.exp(
-                    (etest[0] - esigvref[0]) / alpha
-                    + Cc[0] / alpha * np.log10(sigvtest[0] / sigvref[0])
-                )
-            )
-            dresdetest = (
-                0.5
-                * dt
-                / tref[0]
-                / (1.0 + elast[0])
-                * np.exp(
-                    (etest[0] - esigvref[0]) / alpha
-                    + Cc[0] / alpha * np.log10(sigvtest[0] / sigvref[0])
-                )
-            )
-            detestdutest = avtest[0] / (
-                1.0
-                + 0.5
-                * dt
-                / tref[0]
-                * np.exp(
-                    (etest[0] - esigvref[0]) / alpha
-                    + Cc[0] / alpha * np.log10(sigvtest[0] / sigvref[0])
-                )
-            )
-            deim1testduim1test = avtest[0] / (
-                1.0
-                + 0.5
-                * dt
-                / tref[0]
-                * np.exp(
-                    (etest[0] - esigvref[0]) / alpha
-                    + Cc[0] / alpha * np.log10(sigvtest[0] / sigvref[0])
-                )
-            )
-            deip1testduip1test = avtest[1] / (
-                1.0
-                + 0.5
-                * dt
-                / tref[1]
-                * np.exp(
-                    (etest[1] - esigvref[1]) / alpha
-                    + Cc[1] / alpha * np.log10(sigvtest[1] / sigvref[1])
-                )
-            )
-            detestdsigvtest = (
-                0.5
-                * Cc[0]
-                * dt
-                / tref[0]
-                / sigvtest[0]
-                / np.log(10.0)
-                * np.exp(
-                    (etest[0] - esigvref[0]) / alpha
-                    + Cc[0] / alpha * np.log10(sigvtest[0] / sigvref[0])
-                )
-                / (
-                    1.0
-                    + 0.5
-                    * dt
-                    / tref[0]
-                    * np.exp(
-                        (etest[0] - esigvref[0]) / alpha
-                        + Cc[0] / alpha * np.log10(sigvtest[0] / sigvref[0])
-                    )
-                )
-            )
-        else:
-            dresdsigvtest = 0.0
-            dresdetest = 0.0
-            detestdutest = avtest[0]
-            deim1testduim1test = avtest[0]
-            deip1testduip1test = avtest[1]
-            detestdsigvtest = 0.0
-        dktestdetest = (
-            kref[0] * np.log(10.0) / Ck[0] * pow(10.0, (etest[0] - ekref[0]) / Ck[0])
-        )
-        dkip1testdeip1test = (
-            kref[1] * np.log(10.0) / Ck[1] * pow(10.0, (etest[1] - ekref[1]) / Ck[1])
-        )
-        sigmap = pow(
-            10.0,
-            (
-                esigvref[0]
-                - elast[0]
-                + Cc[0] * np.log10(sigvref[0])
-                - Cr[0] * np.log10(sigvlast[0])
-            )
-            / (Cc[0] - Cr[0]),
-        )
-        if np.fabs((sigvtest[0] - sigvlast[0]) / sigvlast[0]) > 1.0e-10 * pa:
-            if sigmap <= sigvlast[0] and sigvtest[0] > sigvlast[0]:
-                davtestdsigvtest = (
-                    Cc[0]
-                    * (
-                        sigvtest[0]
-                        - sigvtest[0] * np.log(sigvtest[0] / sigvlast[0])
-                        - sigvlast[0]
-                    )
-                    / (
-                        sigvtest[0]
-                        * np.log(10.0)
-                        * (sigvtest[0] - sigvlast[0])
-                        * (sigvtest[0] - sigvlast[0])
-                    )
-                )
-            elif sigmap > sigvtest[0] or sigvtest[0] < sigvlast[0]:
-                davtestdsigvtest = (
-                    Cr[0]
-                    * (
-                        sigvtest[0]
-                        - sigvtest[0] * np.log(sigvtest[0] / sigvlast[0])
-                        - sigvlast[0]
-                    )
-                    / (
-                        sigvtest[0]
-                        * np.log(10.0)
-                        * (sigvtest[0] - sigvlast[0])
-                        * (sigvtest[0] - sigvlast[0])
-                    )
-                )
-            else:
-                davtestdsigvtest = (
-                    Cc[0]
-                    * (
-                        sigvtest[0]
-                        - sigvtest[0] * np.log(sigvtest[0] / sigmap)
-                        - sigvlast[0]
-                    )
-                    - Cr[0] * sigvtest[0] * np.log(sigmap / sigvlast[0])
-                ) / (
-                    sigvtest[0]
-                    * np.log(10.0)
-                    * (sigvtest[0] - sigvlast[0])
-                    * (sigvtest[0] - sigvlast[0])
-                )
-        else:
-            if np.fabs((sigvtest[0] - sigmap) / sigmap) <= 1.0e-10 * pa:
-                davtestdsigvtest = -Cc[0] * np.log(10.0) / sigvtest[0] / sigvtest[0]
-            else:
-                davtestdsigvtest = -Cr[0] * np.log(10.0) / sigvtest[0] / sigvtest[0]
-        ddztestdetest = dzlast / (1.0 + elast[0])
-        dresdu = (
-            dresdutest
-            - dresdsigvtest
-            + dresdktest * dktestdetest * detestdutest
-            - dresdavtest * davtestdsigvtest
-            + dresddztest * ddztestdetest * detestdutest
-            + dresdetest * (detestdutest - detestdsigvtest)
-        )
-        b[0] = dresdu
-        c[0] = dresduip1test + dresdkip1test * dkip1testdeip1test * deip1testduip1test
-    if drainagetype == 0:
-        for i in range(1, len(utest) - 1, 1):
-            x[i - 1] = Res[i]
-    if drainagetype == 1:
-        for i in range(1, len(utest), 1):
-            x[i - 1] = Res[i]
-    if drainagetype == 2:
-        for i in range(0, len(utest) - 1, 1):
-            x[i] = Res[i]
-    c[0] = c[0] / b[0]
-    x[0] = x[0] / b[0]
-    for i in range(1, arrayLength, 1):
-        m = 1.0 / (b[i] - a[i] * c[i - 1])
-        c[i] = c[i] * m
-        x[i] = (x[i] - a[i] * x[i - 1]) * m
-    for i in range(arrayLength - 2, -1, -1):
-        x[i] = x[i] - c[i] * x[i + 1]
-    if drainagetype == 0:
-        for i in range(0, arrayLength, 1):
-            uout[i + 1] = utest[i + 1] - x[i]
-        uout[0] = 0.0
-        uout[N] = 0.0
-    if drainagetype == 1:
-        for i in range(0, arrayLength, 1):
-            uout[i + 1] = utest[i + 1] - x[i]
-        uout[0] = 0.0
-    if drainagetype == 2:
-        for i in range(0, arrayLength, 1):
-            uout[i] = utest[i] - x[i]
-        uout[N] = 0.0
-    return uout
+    h = 1.0e-7 * (np.abs(utest) + np.max(np.abs(dsigv)) + 1.0)
+    lower = np.zeros(N + 1)
+    diag = np.zeros(N + 1)
+    upper = np.zeros(N + 1)
+    with np.errstate(all="ignore"):
+        for color in range(3):
+            j = np.arange(color, N + 1, 3)
+            uplus = utest.copy()
+            uplus[j] += h[j]
+            dRes = residual(uplus) - Res
+            diag[j] = dRes[j] / h[j]
+            below = j[j < N]
+            lower[below + 1] = dRes[below + 1] / h[below]
+            above = j[j > 0]
+            upper[above - 1] = dRes[above - 1] / h[above]
+    return utest - _solve_tridiagonal(lower, diag, upper, Res, drainagetype, N)
 
 
 def get_utest(
@@ -1454,9 +576,8 @@ def get_utest(
     N,
     gammaw,
 ):
-    """Returns an initial guess of array of pore pressures based on current state of the model (i.e., a forward-Euler prediction)
+    """Returns an initial guess of array of pore pressures based on current state of the model
 
-    double[:] Ca, double[:] Cc, double[:] sigvref, double[:] esigvref, double dt, double[:] tref, int drainagetype, int N, double gammaw
     Args:
         klast: array of hydraulic conductivities at beginning of time step
         ktest: array of trial hydraulic conductivities at end of time step
@@ -1478,352 +599,39 @@ def get_utest(
         N: number of elements
         gammaw: unit weight of water
     """
+    alpha = Ca / LN10
+    k, kl, ul = ktest, klast, ulast
+    lower = np.zeros(N + 1)
+    upper = np.zeros(N + 1)
+    diag = avtest / (1.0 + elast)
+    rhs = avtest * ulast / (1.0 + elast) + 0.5 * alpha * dt / tref / (1.0 + elast) * (
+        _creep(elast, sigvlast, esigvref, sigvref, Cc, alpha)
+        + _creep(etest, sigvtest, esigvref, sigvref, Cc, alpha)
+    )
 
-    if drainagetype == 0:
-        arrayLength = N - 1
-    elif drainagetype == 1 or drainagetype == 2:
-        arrayLength = N
-    else:
-        arrayLength = N + 1
-    a = np.zeros(arrayLength, dtype=np.float64)
-    b = np.zeros(arrayLength, dtype=np.float64)
-    c = np.zeros(arrayLength, dtype=np.float64)
-    x = np.zeros(arrayLength, dtype=np.float64)
-    uout = np.zeros(N + 1, dtype=np.float64)
-    a[0] = 0.0
-    c[arrayLength - 1] = 0.0
+    # Interior nodes
+    s, m, p = slice(1, N), slice(0, N - 1), slice(2, N + 1)
+    g = 0.5 * dt / gammaw / (0.5 * (ztest[p] - ztest[m])) ** 2
+    glast = 0.5 * dt / gammaw / (0.5 * (zlast[p] - zlast[m])) ** 2
+    lower[s] = -g * (k[s] + 0.25 * (k[m] - k[p]))
+    diag[s] += 2.0 * g * k[s]
+    upper[s] = -g * (k[s] - 0.25 * (k[m] - k[p]))
+    rhs[s] += glast * kl[s] * (ul[m] - 2.0 * ul[s] + ul[p]) + 0.25 * glast * (ul[p] - ul[m]) * (kl[p] - kl[m])
 
-    for i in range(1, N, 1):
-        alpha = Ca[i] / np.log(10.0)
-        dzlast = 0.5 * (zlast[i + 1] - zlast[i - 1])
-        dztest = 0.5 * (ztest[i + 1] - ztest[i - 1])
-        if i > 1:
-            a[i - 1] = (
-                -0.5
-                * dt
-                / gammaw
-                / dztest
-                / dztest
-                * (ktest[i] + 0.25 * (ktest[i - 1] - ktest[i + 1]))
-            )
-        b[i - 1] = (
-            avtest[i] / (1.0 + elast[i]) + ktest[i] * dt / gammaw / dztest / dztest
-        )
-        if i < N - 1:
-            c[i - 1] = (
-                -0.5
-                * dt
-                / gammaw
-                / dztest
-                / dztest
-                * (ktest[i] - 0.25 * (ktest[i - 1] - ktest[i + 1]))
-            )
-        if alpha > 0:
-            x[i - 1] = (
-                avtest[i] * ulast[i] / (1.0 + elast[i])
-                + 0.5
-                * klast[i]
-                * dt
-                / gammaw
-                / dzlast
-                / dzlast
-                * (ulast[i - 1] - 2.0 * ulast[i] + ulast[i + 1])
-                + 0.5
-                * alpha
-                * dt
-                / tref[i]
-                / (1.0 + elast[i])
-                * (
-                    np.exp(
-                        (elast[i] - esigvref[i]) / alpha
-                        + Cc[i] / alpha * np.log10(sigvlast[i] / sigvref[i])
-                    )
-                    + np.exp(
-                        (etest[i] - esigvref[i]) / alpha
-                        + Cc[i] / alpha * np.log10(sigvtest[i] / sigvref[i])
-                    )
-                )
-            )
-            x[i - 1] += (
-                0.125
-                * dt
-                / gammaw
-                / dzlast
-                / dzlast
-                * (ulast[i + 1] - ulast[i - 1])
-                * (klast[i + 1] - klast[i - 1])
-            )
+    # Undrained boundary node
+    if drainagetype in (1, 2):
+        i, j = (N, N - 1) if drainagetype == 1 else (0, 1)
+        g = 0.5 * dt / gammaw / (ztest[i] - ztest[j]) ** 2
+        glast = 0.5 * dt / gammaw / (zlast[i] - zlast[j]) ** 2
+        diag[i] += g * k[i]
+        neighbor = -g * (k[i] + 0.25 * (k[j] - k[i]))
+        if drainagetype == 1:
+            lower[i] = neighbor
         else:
-            x[i - 1] = avtest[i] * ulast[i] / (1.0 + elast[i]) + 0.5 * klast[
-                i
-            ] * dt / gammaw / dzlast / dzlast * (
-                ulast[i - 1] - 2.0 * ulast[i] + ulast[i + 1]
-            )
-            x[i - 1] += (
-                0.125
-                * dt
-                / gammaw
-                / dzlast
-                / dzlast
-                * (ulast[i + 1] - ulast[i - 1])
-                * (klast[i + 1] - klast[i - 1])
-            )
-    if drainagetype == 1:
-        alpha = Ca[N] / np.log(10.0)
-        dztest = 0.5 * (ztest[N] - ztest[N - 2])
-        dzlast = 0.5 * (zlast[N] - zlast[N - 2])
-        c[N - 2] = (
-            -0.5
-            * dt
-            / gammaw
-            / dztest
-            / dztest
-            * (ktest[N - 1] - 0.25 * (ktest[N - 2] - ktest[N]))
-        )
-        dztest = ztest[N] - ztest[N - 1]
-        dzlast = zlast[N] - zlast[N - 1]
-        b[N - 1] = (
-            avtest[N] / (1.0 + elast[N])
-            + 0.5 * dt / gammaw * ktest[N] / dztest / dztest
-        )
-        a[N - 1] = (
-            -0.5
-            * dt
-            / gammaw
-            / dztest
-            / dztest
-            * (ktest[N] + 0.25 * (ktest[N - 1] - ktest[N]))
-        )
-        if alpha > 0:
-            x[N - 1] = (
-                avtest[N] * ulast[N] / (1.0 + elast[N])
-                + 0.5
-                * klast[N]
-                * dt
-                / gammaw
-                / dzlast
-                / dzlast
-                * (ulast[N - 1] - 2.0 * ulast[N] + ulast[N])
-                + 0.5
-                * alpha
-                * dt
-                / tref[N]
-                / (1.0 + elast[N])
-                * (
-                    np.exp(
-                        (elast[N] - esigvref[N]) / alpha
-                        + Cc[N] / alpha * np.log10(sigvlast[N] / sigvref[N])
-                    )
-                    + np.exp(
-                        (etest[N] - esigvref[N]) / alpha
-                        + Cc[N] / alpha * np.log10(sigvtest[N] / sigvref[N])
-                    )
-                )
-            )
-            x[N - 1] += (
-                0.125
-                * dt
-                / gammaw
-                / dzlast
-                / dzlast
-                * (ulast[N] - ulast[N - 1])
-                * (klast[N] - klast[N - 1])
-            )
-        else:
-            x[N - 1] = avtest[N] * ulast[N] / (1.0 + elast[N]) + 0.5 * klast[
-                N
-            ] * dt / gammaw / dzlast / dzlast * (
-                ulast[N - 1] - 2.0 * ulast[N] + ulast[N]
-            )
-            x[N - 1] += (
-                0.125
-                * dt
-                / gammaw
-                / dzlast
-                / dzlast
-                * (ulast[N] - ulast[N - 1])
-                * (klast[N] - klast[N - 1])
-            )
+            upper[i] = neighbor
+        rhs[i] += glast * kl[i] * (ul[j] - ul[i]) + 0.25 * glast * (ul[i] - ul[j]) * (kl[i] - kl[j])
 
-    if drainagetype == 2:
-        for i in range(1, N, 1):
-            alpha = Ca[i] / np.log(10.0)
-            dzlast = 0.5 * (zlast[i + 1] - zlast[i - 1])
-            dztest = 0.5 * (ztest[i + 1] - ztest[i - 1])
-            if i > 1:
-                a[i] = (
-                    -0.5
-                    * dt
-                    / gammaw
-                    / dztest
-                    / dztest
-                    * (ktest[i] + 0.25 * (ktest[i - 1] - ktest[i + 1]))
-                )
-            b[i] = (
-                avtest[i] / (1.0 + elast[i]) + ktest[i] * dt / gammaw / dztest / dztest
-            )
-            if i < N - 1:
-                c[i] = (
-                    -0.5
-                    * dt
-                    / gammaw
-                    / dztest
-                    / dztest
-                    * (ktest[i] + 0.25 * (ktest[i + 1] - ktest[i - 1]))
-                )
-            if alpha > 0:
-                x[i] = (
-                    avtest[i] * ulast[i] / (1.0 + elast[i])
-                    + 0.5
-                    * klast[i]
-                    * dt
-                    / gammaw
-                    / dzlast
-                    / dzlast
-                    * (ulast[i - 1] - 2.0 * ulast[i] + ulast[i + 1])
-                    + 0.5
-                    * alpha
-                    * dt
-                    / tref[i]
-                    / (1.0 + elast[i])
-                    * (
-                        np.exp(
-                            (elast[i] - esigvref[i]) / alpha
-                            + Cc[i] / alpha * np.log10(sigvlast[i] / sigvref[i])
-                        )
-                        + np.exp(
-                            (etest[i] - esigvref[i]) / alpha
-                            + Cc[i] / alpha * np.log10(sigvtest[i] / sigvref[i])
-                        )
-                    )
-                )
-                x[i] += (
-                    0.125
-                    * dt
-                    / gammaw
-                    / dzlast
-                    / dzlast
-                    * (ulast[i + 1] - ulast[i - 1])
-                    * (klast[i + 1] - klast[i - 1])
-                )
-            else:
-                x[i] = avtest[i] * ulast[i] / (1.0 + elast[i]) + 0.5 * klast[
-                    i
-                ] * dt / gammaw / dzlast / dzlast * (
-                    ulast[i - 1] - 2.0 * ulast[i] + ulast[i + 1]
-                )
-                x[i] += (
-                    0.125
-                    * dt
-                    / gammaw
-                    / dzlast
-                    / dzlast
-                    * (ulast[i + 1] - ulast[i - 1])
-                    * (klast[i + 1] - klast[i - 1])
-                )
-
-        alpha = Ca[0] / np.log(10.0)
-        dztest = 0.5 * (ztest[2] - ztest[0])
-        dzlast = 0.5 * (zlast[2] - zlast[0])
-        a[1] = (
-            -0.5
-            * dt
-            / gammaw
-            / dztest
-            / dztest
-            * (ktest[1] + 0.25 * (ktest[2] - ktest[0]))
-        )
-        dzlast = zlast[1] - zlast[0]
-        dztest = ztest[1] - ztest[0]
-        b[0] = avtest[0] / (1.0 + elast[0]) + ktest[0] * dt / gammaw / dztest / dztest
-        c[0] = (
-            -0.5
-            * dt
-            / gammaw
-            / dztest
-            / dztest
-            * (ktest[0] + 0.25 * (ktest[1] - ktest[0]))
-        )
-        if alpha > 0:
-            x[0] = (
-                avtest[0] * ulast[0] / (1.0 + elast[0])
-                + 0.5
-                * dt
-                / gammaw
-                * (klast[1] - klast[0])
-                * (ulast[1] - ulast[0])
-                / dzlast
-                / dzlast
-                + 0.5
-                * alpha
-                * dt
-                / tref[0]
-                / (1.0 + elast[0])
-                * (
-                    np.exp(
-                        (elast[0] - esigvref[0]) / alpha
-                        + Cc[0] / alpha * np.log10(sigvlast[0] / sigvref[0])
-                    )
-                    + np.exp(
-                        (etest[0] - esigvref[0]) / alpha
-                        + Cc[0] / alpha * np.log10(sigvtest[0] / sigvref[0])
-                    )
-                )
-            )
-            x[0] += (
-                0.125
-                * dt
-                / gammaw
-                / dzlast
-                / dzlast
-                * (ulast[1] - ulast[0])
-                * (klast[1] - klast[0])
-            )
-        else:
-            x[0] = (
-                avtest[0] * ulast[0] / (1.0 + elast[0])
-                + 0.5
-                * dt
-                / gammaw
-                * (klast[1] - klast[0])
-                * (ulast[1] - ulast[0])
-                / dzlast
-                / dzlast
-            )
-            x[0] += (
-                0.125
-                * dt
-                / gammaw
-                / dzlast
-                / dzlast
-                * (ulast[1] - ulast[0])
-                * (klast[1] - klast[0])
-            )
-
-    c[0] = c[0] / b[0]
-    x[0] = x[0] / b[0]
-    for i in range(1, arrayLength, 1):
-        m = 1.0 / (b[i] - a[i] * c[i - 1])
-        c[i] = c[i] * m
-        x[i] = (x[i] - a[i] * x[i - 1]) * m
-
-    for i in range(arrayLength - 2, -1, -1):
-        x[i] = x[i] - c[i] * x[i + 1]
-
-    if drainagetype == 0:
-        uout[0] = 0.0
-        uout[N] = 0.0
-        for i in range(0, arrayLength, 1):
-            uout[i + 1] = x[i]
-    if drainagetype == 1:
-        uout[0] = 0.0
-        for i in range(0, arrayLength, 1):
-            uout[i + 1] = x[i]
-    if drainagetype == 2:
-        uout[N] = 0.0
-        for i in range(0, arrayLength, 1):
-            uout[i] = x[i]
-    return uout
+    return _solve_tridiagonal(lower, diag, upper, rhs, drainagetype, N)
 
 
 def Max(v):
@@ -1832,7 +640,7 @@ def Max(v):
     Args:
         v: array of values
     """
-    return np.max([np.max(v), -np.min(v)])
+    return np.max(np.abs(v))
 
 
 def get_initial(
@@ -1861,6 +669,8 @@ def get_initial(
 ):
     """Returns Python dictionary containing initial values of void ratio and vertial effective stress, and final vertical effective stress
 
+    The initial state is integrated from the top of the layer downward, so this calculation proceeds node by node.
+
     Args:
         depth: array of nodal depths
         Cc: array of virgin compression indices
@@ -1886,164 +696,79 @@ def get_initial(
         drainagetype: 0 = double-drained, 1 = single drained through top, 2 = single-drained through bottom
     """
     sigvo = np.zeros(depth.size, dtype=np.float64)
-    sigvo2 = np.zeros(depth.size, dtype=np.float64)
-    sigvf = np.zeros(depth.size, dtype=np.float64)
     eo = np.zeros(depth.size, dtype=np.float64)
-    sigvncl = np.zeros(depth.size, dtype=np.float64)
-    sigvo[0] = qo
-    sigvo2[0] = qo * (1 - ru[0])
-    sigvf[0] = qo + dsigv[0] * loadfactor[0]
-    if ocrvoidratiotype[0] == 0:
-        eo[0] = (
-            esigvref[0]
-            - Cc[0] * np.log10(ocrvoidratio[0] * qo / sigvref[0])
-            + Cr[0] * np.log10(ocrvoidratio[0])
-        )
-        sigvncl[0] = pow(
-            10.0,
-            (
-                esigvref[0]
-                - eo[0]
-                + Cc[0] * np.log10(sigvref[0])
-                - Cr[0] * np.log10(sigvo[0])
-            )
-            / (Cc[0] - Cr[0]),
-        )
-    elif ocrvoidratiotype[0] == 1:
-        eo[0] = ocrvoidratio[0]
-        sigvncl[0] = pow(
-            10.0,
-            (
-                esigvref[0]
-                - eo[0]
-                + Cc[0] * np.log10(sigvref[0])
-                - Cr[0] * np.log10(sigvo[0])
-            )
-            / (Cc[0] - Cr[0]),
-        )
-    elif ocrvoidratiotype[0] == 2:
-        eo[0] = (
-            esigvref[0]
-            - Cc[0] * np.log10(ocrvoidratio[0] / sigvref[0])
-            + Cr[0] * np.log10(ocrvoidratio[0] / sigvo[0])
-        )
-        sigvncl[0] = pow(
-            10.0,
-            (
-                esigvref[0]
-                - eo[0]
-                + Cc[0] * np.log10(sigvref[0])
-                - Cr[0] * np.log10(sigvo[0])
-            )
-            / (Cc[0] - Cr[0]),
-        )
-    else:
-        print("Invalid ocrvoidratiotype: " + str(ocrvoidratiotype[0]))
-        return
 
-    for i in range(1, depth.size, 1):
-        dz = depth[i] - depth[i - 1]
-        sigvotest = sigvo[i - 1] + (Gs[i] - 1.0) / (1.0 + eo[i - 1]) * gammaw * dz
+    def void_ratio(i, sigv):
         if ocrvoidratiotype[i] == 0:
-            eotest = (
+            return (
                 esigvref[i]
-                - Cc[i] * np.log10(ocrvoidratio[i] * sigvotest / sigvref[i])
+                - Cc[i] * np.log10(ocrvoidratio[i] * sigv / sigvref[i])
                 + Cr[i] * np.log10(ocrvoidratio[i])
             )
-            res = (
-                sigvotest
-                - sigvo[i - 1]
-                - (Gs[i - 1] - 1) * gammaw * dz / (1.0 + 0.5 * (eotest + eo[i - 1]))
-            )
-            while np.fabs(res) > 1.0e-10 * pa:
-                sigvotest = sigvo[i - 1] + (Gs[i] - 1.0) * gammaw * dz / (
-                    1.0 + 0.5 * (eotest + eo[i - 1])
-                )
-                eotest = (
-                    esigvref[i]
-                    - Cc[i] * np.log10(ocrvoidratio[i] * sigvotest / sigvref[i])
-                    + Cr[i] * np.log10(ocrvoidratio[i])
-                )
-                res = (
-                    sigvotest
-                    - sigvo[i - 1]
-                    - (Gs[i] - 1) * gammaw * dz / (1.0 + 0.5 * (eotest + eo[i - 1]))
-                )
-            sigvo[i] = sigvotest
-            eo[i] = eotest
-            sigvo2[i] = sigvo[i] * (1 - ru[i])
-            sigvf[i] = sigvo[i] + dsigv[i] * loadfactor[0]
-            sigvncl[i] = pow(
-                10.0,
-                (
-                    esigvref[i]
-                    - eo[i]
-                    + Cc[i] * np.log10(sigvref[i])
-                    - Cr[i] * np.log10(sigvo[i])
-                )
-                / (Cc[i] - Cr[i]),
-            )
-        elif ocrvoidratiotype[i] == 1:
+        if ocrvoidratiotype[i] == 1:
+            return ocrvoidratio[i]
+        return (
+            esigvref[i]
+            - Cc[i] * np.log10(ocrvoidratio[i] / sigvref[i])
+            + Cr[i] * np.log10(ocrvoidratio[i] / sigv)
+        )
+
+    for i in range(depth.size):
+        if ocrvoidratiotype[i] not in (0, 1, 2):
+            print("Invalid ocrvoidratiotype: " + str(ocrvoidratiotype[i]))
+            return
+    sigvo[0] = qo
+    eo[0] = void_ratio(0, qo)
+    for i in range(1, depth.size):
+        dz = depth[i] - depth[i - 1]
+        if ocrvoidratiotype[i] == 1:
             eo[i] = ocrvoidratio[i]
             sigvo[i] = sigvo[i - 1] + (Gs[i] - 1.0) * dz * gammaw / (
                 1.0 + 0.5 * (eo[i] + eo[i - 1])
             )
-            sigvo2[i] = sigvo[i] * (1 - ru[i])
-            sigvf[i] = sigvo[i] + dsigv[i] * loadfactor[0]
-            sigvncl[i] = pow(
-                10.0,
-                (
-                    esigvref[i]
-                    - eo[i]
-                    + Cc[i] * np.log10(sigvref[i])
-                    - Cr[i] * np.log10(sigvo[i])
-                )
-                / (Cc[i] - Cr[i]),
+            continue
+        # Fixed-point iteration on effective stress, using the average void ratio over the element
+        sigvotest = sigvo[i - 1] + (Gs[i] - 1.0) / (1.0 + eo[i - 1]) * gammaw * dz
+        eotest = void_ratio(i, sigvotest)
+        res = (
+            sigvotest
+            - sigvo[i - 1]
+            - (Gs[i] - 1.0) * gammaw * dz / (1.0 + 0.5 * (eotest + eo[i - 1]))
+        )
+        while np.fabs(res) > 1.0e-10 * pa:
+            sigvotest = sigvo[i - 1] + (Gs[i] - 1.0) * gammaw * dz / (
+                1.0 + 0.5 * (eotest + eo[i - 1])
             )
-        elif ocrvoidratiotype[i] == 2:
-            sigvotest = sigvo[i - 1] + (Gs[i] - 1.0) / (1.0 + eo[i - 1]) * gammaw * dz
-            eotest = (
-                esigvref[i]
-                - Cc[i] * np.log10(ocrvoidratio[i] / sigvref[i])
-                + Cr[i] * np.log10(ocrvoidratio[i] / sigvotest)
-            )
+            eotest = void_ratio(i, sigvotest)
             res = (
                 sigvotest
                 - sigvo[i - 1]
-                - (Gs[i] - 1) * gammaw * dz / (1.0 + 0.5 * (eotest + eo[i - 1]))
+                - (Gs[i] - 1.0) * gammaw * dz / (1.0 + 0.5 * (eotest + eo[i - 1]))
             )
-            while np.fabs(res) > 1.0e-10 * pa:
-                sigvotest = sigvo[i - 1] + (Gs[i] - 1.0) * gammaw * dz / (
-                    1.0 + 0.5 * (eotest + eo[i - 1])
-                )
-                eotest = (
-                    esigvref[i]
-                    - Cc[i] * np.log10(ocrvoidratio[i] / sigvref[i])
-                    + Cr[i] * np.log10(ocrvoidratio[i] / sigvotest)
-                )
-                res = (
-                    sigvotest
-                    - sigvo[i - 1]
-                    - (Gs[i] - 1) * gammaw * dz / (1.0 + 0.5 * (eotest + eo[i - 1]))
-                )
-            sigvo[i] = sigvotest
-            eo[i] = eotest
-            sigvo2[i] = sigvo[i] * (1 - ru[i])
-            sigvf[i] = sigvo[i] + dsigv[i] * loadfactor[0]
-            sigvncl[i] = pow(
-                10.0,
-                (
-                    esigvref[i]
-                    - eo[i]
-                    + Cc[i] * np.log10(sigvref[i])
-                    - Cr[i] * np.log10(sigvo[i])
-                )
-                / (Cc[i] - Cr[i]),
-            )
-        else:
-            print("Invalid ocrvoidratiotype: " + str(ocrvoidratiotype[0]))
-            return
+        sigvo[i] = sigvotest
+        eo[i] = eotest
+    sigvo2 = sigvo * (1.0 - ru)
+    sigvf = sigvo + dsigv * loadfactor[0]
     return {"eo": eo, "sigvo": sigvo, "sigvo2": sigvo2, "sigvf": sigvf}
+
+
+def _get_trial_state(
+    utest, ulast, sigvlast, elast, etest, Cc, Cr, Ca, esigvref, sigvref, tref, ekref, kref, Ck, zlast, H, dt
+):
+    """Return effective stress, compressibility, void ratio, hydraulic conductivity, and node depths
+    at the end of the time step for trial pore pressures utest"""
+    sigvtest = sigvlast + ulast - utest
+    avtest = get_avtest(elast, sigvlast, sigvtest, esigvref, sigvref, Cc, Cr)
+    etest = get_etest(
+        etest, elast, esigvref, Ca / LN10, tref, sigvtest, sigvlast, sigvref, Cc, avtest, utest, ulast, dt
+    )
+    epsvtest = (elast - etest) / (1.0 + elast)
+    ktest = get_ktest(etest, ekref, kref, Ck)
+    # Node depths follow from compression of each element, with the bottom of the layer fixed
+    ztest = np.empty_like(zlast)
+    ztest[-1] = H
+    ztest[:-1] = H - np.cumsum((np.diff(zlast) * (1.0 - epsvtest[:-1]))[::-1])[::-1]
+    return sigvtest, avtest, etest, ktest, ztest
 
 
 def compute(**kwargs):
@@ -2085,12 +810,15 @@ def compute(**kwargs):
         dsigv: change in total stress (required, scalar or array)
         ocrvoidratiotype: 0 OCR, 1 eo, 2 maximum past pressure (required, scalar or array)
         ocrvoidratio: value of OCR, eo, or maximum past pressure, depending on value of ocrvoidratiotype (required, scalar or array)
+        ru: initial excess pore pressure ratio, prior to addition of dsigv (optional, scalar or array, default = 0)
         gammaw: unit weight of water (optional, default = 9.81)
         tol: convergence tolerance(optional, default = 1.0e-8)
         pa: atmospheric pressure (optional, default = 101.325)
         drainagetype: 0 = double-drained, 1 = single-drained through top, 2 = single-drained through bottom (optional, default = 0)
     """
-
+    inputs = get_inputs(**kwargs)
+    if inputs is None:
+        return
     (
         depth,
         Cc,
@@ -2114,37 +842,16 @@ def compute(**kwargs):
         tol,
         pa,
         drainagetype,
-    ) = get_inputs(**kwargs)
+    ) = inputs
 
     N = depth.size - 1
     Ntime = time.size
     H = depth[N]
 
-    dsigvsub = np.zeros(N + 1, dtype=float)
-    dsigvsublast = np.zeros(N + 1, dtype=float)
     u = np.zeros((N + 1, Ntime), dtype=float)
     sigv = np.zeros((N + 1, Ntime), dtype=float)
     z = np.zeros((N + 1, Ntime), dtype=float)
     e = np.zeros((N + 1, Ntime), dtype=float)
-    sigvo = np.zeros(N + 1, dtype=float)
-    sigvo2 = np.zeros(N + 1, dtype=float)
-    sigvf = np.zeros(N + 1, dtype=float)
-    eo = np.zeros(N + 1, dtype=float)
-    sigvncl = np.zeros(N + 1, dtype=float)
-    utest = np.zeros(N + 1, dtype=float)
-    ulast = np.zeros(N + 1, dtype=float)
-    sigvtest = np.zeros(N + 1, dtype=float)
-    sigvlast = np.zeros(N + 1, dtype=float)
-    avtest = np.zeros(N + 1)
-    etest = np.zeros(N + 1)
-    elast = np.zeros(N + 1)
-    ktest = np.zeros(N + 1)
-    klast = np.zeros(N + 1)
-    epsvtest = np.zeros(N + 1)
-    epsvlast = np.zeros(N + 1)
-    ztest = np.zeros(N + 1)
-    zlast = np.zeros(N + 1)
-    Res = np.zeros(N + 1)
 
     initial = get_initial(
         depth,
@@ -2170,122 +877,38 @@ def compute(**kwargs):
         pa,
         drainagetype,
     )
-    eo = initial["eo"]
-    sigvo = initial["sigvo"]
-    sigvo2 = initial["sigvo2"]
-    sigvf = initial["sigvf"]
+    if initial is None:
+        return
 
-    for i in range(0, N + 1, 1):
-        dsigvsub[i] = dsigv[i] * loadfactor[0]
-        dsigvsublast[i] = dsigv[i] * loadfactor[0]
-        alpha = Ca[i] / np.log(10)
-        ulast[i] = sigvf[i] - sigvo2[i]
-        sigvlast[i] = sigvf[i] - ulast[i]
-        avtest[i] = get_avtest(
-            elast[i], sigvo2[i], sigvlast[i], esigvref[i], sigvref[i], Cc[i], Cr[i]
-        )
-        elast[i] = eo[i] - avtest[i] * (sigvlast[i] - sigvo2[i])
-        klast[i] = get_ktest(elast[i], ekref[i], kref[i], Ck[i])
-    zlast[N] = H
-    for i in range(0, N, 1):
-        zlast[N - 1 - i] = zlast[N - i] - H / N
-    for j in range(0, Ntime, 1):
-        for i in range(0, N + 1, 1):
-            dsigvsub[i] = dsigv[i] * loadfactor[j]
-            ulast[i] = ulast[i] + dsigvsub[i] - dsigvsublast[i]
-            dsigvsublast[i] = dsigvsub[i]
-            ktest[i] = klast[i]
-            ztest[i] = zlast[i]
-            sigvtest[i] = sigvlast[i]
-            etest[i] = elast[i]
-            utest[i] = ulast[i]
-            avtest[i] = get_avtest(
-                elast[i],
-                sigvlast[i],
-                sigvtest[i],
-                esigvref[i],
-                sigvref[i],
-                Cc[i],
-                Cr[i],
-            )
-        if j == 0:
-            dt = time[j]
-        else:
-            dt = time[j] - time[j - 1]
+    dsigvsublast = dsigv * loadfactor[0]
+    ulast = initial["sigvf"] - initial["sigvo2"]
+    sigvlast = initial["sigvf"] - ulast
+    elast = initial["eo"].copy()
+    klast = get_ktest(elast, ekref, kref, Ck)
+    zlast = depth.copy()
+    material = dict(
+        Cc=Cc, Cr=Cr, Ca=Ca, esigvref=esigvref, sigvref=sigvref, tref=tref, ekref=ekref, kref=kref, Ck=Ck, H=H
+    )
+
+    for j in range(Ntime):
+        dsigvsub = dsigv * loadfactor[j]
+        ulast = ulast + dsigvsub - dsigvsublast
+        dsigvsublast = dsigvsub
+        dt = time[j] if j == 0 else time[j] - time[j - 1]
+        ktest = klast.copy()
+        etest = elast.copy()
+        avtest = get_avtest(elast, sigvlast, sigvlast, esigvref, sigvref, Cc, Cr)
         utest = get_utest(
             klast,
             ktest,
             avtest,
             zlast,
-            ztest,
-            ulast,
-            sigvlast,
-            sigvtest,
-            elast,
-            etest,
-            Ca,
-            Cc,
-            sigvref,
-            esigvref,
-            dt,
-            tref,
-            drainagetype,
-            N,
-            gammaw,
-        )
-        for i in range(0, N + 1, 1):
-            alpha = Ca[i] / np.log(10.0)
-            sigvtest[i] = sigvlast[i] + ulast[i] - utest[i]
-            avtest[i] = get_avtest(
-                elast[i],
-                sigvlast[i],
-                sigvtest[i],
-                esigvref[i],
-                sigvref[i],
-                Cc[i],
-                Cr[i],
-            )
-            if alpha > 0:
-                etest[i] = get_etest(
-                    etest[i],
-                    elast[i],
-                    esigvref[i],
-                    alpha,
-                    tref[i],
-                    sigvtest[i],
-                    sigvlast[i],
-                    sigvref[i],
-                    Cc[i],
-                    avtest[i],
-                    utest[i],
-                    ulast[i],
-                    dt,
-                )
-                epsvtest[i] = (elast[i] - etest[i]) / (1.0 + elast[i])
-            else:
-                etest[i] = elast[i] - avtest[i] * (ulast[i] - utest[i])
-                epsvtest[i] = (elast[i] - etest[i]) / (1.0 + elast[i])
-            ktest[i] = get_ktest(etest[i], ekref[i], kref[i], Ck[i])
-        ztest[N] = H
-        for i in range(0, N, 1):
-            ztest[N - 1 - i] = ztest[N - i] - (
-                zlast[N - i]
-                - zlast[N - i - 1]
-                - (epsvtest[N - i - 1]) * (zlast[N - i] - zlast[N - i - 1])
-            )
-        Res = get_residual(
-            ulast,
-            utest,
-            elast,
-            etest,
-            klast,
-            ktest,
-            avtest,
             zlast,
-            ztest,
+            ulast,
             sigvlast,
-            sigvtest,
-            gammaw,
+            sigvlast,
+            elast,
+            etest,
             Ca,
             Cc,
             sigvref,
@@ -2294,22 +917,58 @@ def compute(**kwargs):
             tref,
             drainagetype,
             N,
+            gammaw,
         )
-        if Max(Res) <= tol:
-            for i in range(0, len(utest), 1):
-                u[i][j] = utest[i]
-                ulast[i] = utest[i]
-                sigvlast[i] = sigvtest[i]
-                elast[i] = etest[i]
-                klast[i] = ktest[i]
-                zlast[i] = ztest[i]
-                z[i][j] = ztest[i]
-                sigv[i][j] = sigvtest[i]
-                e[i][j] = etest[i]
-            continue
+
+        def trial(utest, etest):
+            """Return the state at the end of the time step for trial pore pressures, and its residuals"""
+            sigvtest, avtest, etest, ktest, ztest = _get_trial_state(
+                utest, ulast, sigvlast, elast, etest, zlast=zlast, dt=dt, **material
+            )
+            Res = get_residual(
+                ulast,
+                utest,
+                elast,
+                etest,
+                klast,
+                ktest,
+                avtest,
+                zlast,
+                ztest,
+                sigvlast,
+                sigvtest,
+                gammaw,
+                Ca,
+                Cc,
+                sigvref,
+                esigvref,
+                dt,
+                tref,
+                drainagetype,
+                N,
+            )
+            return (sigvtest, avtest, etest, ktest, ztest), Res
+
+        with np.errstate(all="ignore"):
+            state, Res = trial(utest, etest)
+            if not np.all(np.isfinite(Res)):
+                # The predictor overshot (e.g., negative effective stress), so start from the previous pore pressures
+                utest = ulast.copy()
+                state, Res = trial(utest, etest)
         I = 0
-        while Max(Res) > tol:
-            utest = get_utest2(
+        # NaN residuals compare False with tol, so check them explicitly
+        while not (np.all(np.isfinite(Res)) and Max(Res) <= tol):
+            if I == 100 or not np.all(np.isfinite(Res)):
+                print(
+                    "ERROR! Increment "
+                    + str(j)
+                    + " did not converge in "
+                    + str(I)
+                    + " iterations."
+                )
+                return {"z": z, "u": u, "sigv": sigv, "e": e}
+            sigvtest, avtest, etest, ktest, ztest = state
+            step = get_utest2(
                 N,
                 klast,
                 ktest,
@@ -2337,90 +996,22 @@ def compute(**kwargs):
                 dsigvsub,
                 drainagetype,
                 pa,
-            )
-            for i in range(0, N + 1, 1):
-                sigvtest[i] = sigvlast[i] + ulast[i] - utest[i]
-                avtest[i] = get_avtest(
-                    elast[i],
-                    sigvlast[i],
-                    sigvtest[i],
-                    esigvref[i],
-                    sigvref[i],
-                    Cc[i],
-                    Cr[i],
-                )
-                etest[i] = get_etest(
-                    etest[i],
-                    elast[i],
-                    esigvref[i],
-                    alpha,
-                    tref[i],
-                    sigvtest[i],
-                    sigvlast[i],
-                    sigvref[i],
-                    Cc[i],
-                    avtest[i],
-                    utest[i],
-                    ulast[i],
-                    dt,
-                )
-                epsvtest[i] = (elast[i] - etest[i]) / (1.0 + elast[i])
-                ktest[i] = get_ktest(etest[i], ekref[i], kref[i], Ck[i])
-
-            ztest[N] = H
-            for i in range(0, N, 1):
-                ztest[N - 1 - i] = ztest[N - i] - (
-                    zlast[N - i]
-                    - zlast[N - i - 1]
-                    - (epsvtest[N - i - 1]) * (zlast[N - i] - zlast[N - i - 1])
-                )
-            Res = get_residual(
-                ulast,
-                utest,
-                elast,
-                etest,
-                klast,
-                ktest,
-                avtest,
-                zlast,
-                ztest,
-                sigvlast,
-                sigvtest,
-                gammaw,
-                Ca,
-                Cc,
-                sigvref,
-                esigvref,
-                dt,
-                tref,
-                drainagetype,
-                N,
-            )
-            if Max(Res) <= tol:
-                for i in range(0, len(utest), 1):
-                    u[i][j] = utest[i]
-                    ulast[i] = utest[i]
-                    sigvlast[i] = sigvtest[i]
-                    elast[i] = etest[i]
-                    klast[i] = ktest[i]
-                    zlast[i] = ztest[i]
-                    z[i][j] = ztest[i]
-                    sigv[i][j] = sigvtest[i]
-                    e[i][j] = etest[i]
-                continue
-            I = I + 1
-            if I == 100:
-                print(
-                    "ERROR! Increment "
-                    + str(j)
-                    + " did not converge in "
-                    + str(I)
-                    + " iterations."
-                )
-                return {"z": z, "u": u, "sigv": sigv, "e": e}
-    return {
-        "z": np.asarray(z),
-        "u": np.asarray(u),
-        "sigv": np.asarray(sigv),
-        "e": np.asarray(e),
-    }
+            ) - utest
+            # Backtracking line search: halve the Newton step until the state is valid and the residual decreases
+            lam = 1.0
+            with np.errstate(all="ignore"):
+                for _ in range(40):
+                    candidate = utest + lam * step
+                    candidate_state, candidate_Res = trial(candidate, etest)
+                    if np.all(np.isfinite(candidate_Res)) and Max(candidate_Res) < Max(Res):
+                        break
+                    lam *= 0.5
+            utest, state, Res = candidate, candidate_state, candidate_Res
+            I += 1
+        sigvtest, avtest, etest, ktest, ztest = state
+        u[:, j] = ulast = utest
+        sigv[:, j] = sigvlast = sigvtest
+        e[:, j] = elast = etest
+        z[:, j] = zlast = ztest
+        klast = ktest
+    return {"z": z, "u": u, "sigv": sigv, "e": e}
